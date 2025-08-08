@@ -1,0 +1,32 @@
+Staj_Proje_1.csproj  --> Projenin meta-bilgilerini (hedef framework, paket bağımlılıkları) taşır.
+Program.cs           --> WebApplication.CreateBuilder() ile servisleri (DbContext, Identity, JWT, HttpClient, Swagger…) kaydeder.
+Program.cs           --> app.UseAuthentication(), app.MapControllers() gibi middleware ve route tanımlamalarını yapar.
+appsettings.json     --> Ortam bağımsız yapılandırma (ConnectionStrings, JWT, Logging vb.)
+Controllers/         --> HTTP endpoint’lerini tanımladığın WebAPI controller sınıfları
+MyBankController.cs    --> Kayıt/login işlemleri ve JWT üretimi
+BankController.cs    --> (İleride) Vakıfbank API çağrılarını yapacağın uç nokta
+Data/                --> Veri erişim katmanı
+ApplicationDbContext --> EF Core’un DbContext’i; DbSet<ApplicationUser> ile kullanıcı tablosunu yönetir, OnModelCreating ile tabloların  konfigürasyonunu (ör. decimal precision) belirtirsin.
+ApplicationUser      --> Identity altyapısının temel IdentityUser sınıfını devralıp KullaniciAdi ve Bakiye gibi ekstra sütunları eklediğin varlık sınıfı.
+DTOs/                --> “Data Transfer Object” sınıfları (istek/cevap modelleri)
+RegisterDto.cs       --> Register endpoint’ine gelen gövde yapısı
+LoginDto.cs          --> Login endpoint’ine gelen gövde yapısı
+Models/              --> (İleride) domain modelleri, view modelleri veya ekstra sınıflar
+Migrations/          --> dotnet ef migrations add … komutuyla oluşturulan C# dosyaları. Veritabanı şemasını nasıl güncelleyeceğini tanımlar.
+bin/                 --> Derlenmiş DLL’ler ve çalışma zamanı çıktıları (oluşur, versiyon kontrol etme)  
+obj/                 --> Geçici derleme dosyaları, paketleme çıktıları
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
