@@ -1,3 +1,4 @@
+// Services/BankService.cs
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -7,7 +8,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
-using Staj_Proje_1.Models;
+using Staj_Proje_1.Models;     // <-- MODELLER BURADA
+using Staj_Proje_1.Services;   // <-- IBankService buras
+ // <-- IBankService ile aynı namespace
 
 namespace Staj_Proje_1.Services
 {
@@ -58,29 +61,49 @@ namespace Staj_Proje_1.Services
         }
 
         // -------------------------------------------------------------
-        // 2) HESAP LISTESI
+        // 2) HESAP LİSTESİ  (IBankService ile uyumlu: Task<AccountListResponse>)
         // -------------------------------------------------------------
         public async Task<AccountListResponse> GetAccountListAsync(string token)
         {
-            _http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
+            _http.DefaultRequestHeaders.Clear();
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _http.DefaultRequestHeaders.Accept.Clear();
+            _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            var res = await _http.PostAsJsonAsync("accountList", new { });
-            res.EnsureSuccessStatusCode();
+            // Eğer HttpClient.BaseAddress zaten app startup'ta ayarlıysa sadece relatif path kullan:
+            // var url = "accounts";
+            var url = $"{_cfg["VakifBank:BaseUrl"]}/accounts"; // BaseAddress ayarlı değilse tam URL kullan
 
-            return await res.Content.ReadFromJsonAsync<AccountListResponse>(
-                       new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+
+            // Zorunlu özel header’lar varsa (bankanın dokümanına göre) ekle:
+            // req.Headers.Add("x-consent-id", _cfg["VakifBank:ConsentId"]);
+            // req.Headers.Add("x-resource-indicator", _cfg["VakifBank:ResourceEnvironment"]);
+            // req.Headers.Add("x-ibm-client-id", _cfg["VakifBank:ClientId"]);
+
+            using var res = await _http.SendAsync(req);
+            var body = await res.Content.ReadAsStringAsync();
+
+            if (!res.IsSuccessStatusCode)
+                throw new Exception($"AccountList hatası: {(int)res.StatusCode} {res.ReasonPhrase}\nBody: {body}");
+
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var dto = JsonSerializer.Deserialize<AccountListResponse>(body, options);
+            if (dto is null)
+                throw new Exception("AccountListResponse deserialize edilemedi.");
+
+            return dto;
         }
 
         // -------------------------------------------------------------
-        // 3) HESAP DETAYI (tam JSON, hâlâ lazım olursa)
+        // 3) HESAP DETAYI (tam JSON)
         // -------------------------------------------------------------
         public async Task<AccountDetailResponse> GetAccountDetailAsync(string token, string accountNumber)
         {
             _http.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
 
-            const string path = "/accountDetail";
+            const string path = "accountDetail";
 
             var apiReq = new AccountDetailApiRequest
             {
@@ -113,7 +136,7 @@ namespace Staj_Proje_1.Services
             _http.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
 
-            const string path = "/accountDetail";
+            const string path = "accountDetail";
 
             var apiReq = new AccountDetailApiRequest
             {
@@ -148,7 +171,7 @@ namespace Staj_Proje_1.Services
         }
 
         // -------------------------------------------------------------
-        // 5) HESAP HAREKETLERI
+        // 5) HESAP HAREKETLERİ
         // -------------------------------------------------------------
         public async Task<TransactionsResponse> GetAccountTransactionsAsync(string token, string accountNumber)
         {

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Staj_Proje_1.csproj": {}
+    "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Internship_Project\\Staj_Proje_1.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Staj_Proje_1.csproj": {
+    "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Internship_Project\\Staj_Proje_1.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Staj_Proje_1.csproj",
+        "projectUniqueName": "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Internship_Project\\Staj_Proje_1.csproj",
         "projectName": "Staj_Proje_1",
-        "projectPath": "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Staj_Proje_1.csproj",
+        "projectPath": "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Internship_Project\\Staj_Proje_1.csproj",
         "packagesPath": "C:\\Users\\Berat Soylu\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\obj\\",
+        "outputPath": "C:\\Users\\Berat Soylu\\OneDrive - trakya.edu.tr\\Masaüstü\\Staj_Proje_1\\Internship_Project\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

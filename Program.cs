@@ -7,6 +7,8 @@ using System.Text;
 using System.Net.Http.Headers;
 using Staj_Proje_1.Services;
 using System.Text.Json.Serialization;
+using Staj_Proje_1.Services;
+
 
 // Bu program bir Web API projesinin en temel ayarlarını—veritabanı, kullanıcı sistemi, güvenlik (JWT),
 // otomatik dokümantasyon ve VakıfBank entegrasyonunu—hemen çalışır hale getiriyor.
@@ -70,9 +72,11 @@ builder.Services.AddSwaggerGen();
 // VakıfBank API’sine istek yapacak HttpClient + BankService kaydı
 builder.Services.AddHttpClient<IBankService, BankService>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["VakifBank:BaseUrl"]);
-    client.DefaultRequestHeaders.Accept.Add(
-        new MediaTypeWithQualityHeaderValue("application/json"));
+    var baseUrl = builder.Configuration["VakifBank:BaseUrl"];
+    if (string.IsNullOrWhiteSpace(baseUrl))
+        throw new InvalidOperationException("VakifBank:BaseUrl appsettings içinde tanımlı değil.");
+
+    client.BaseAddress = new Uri(baseUrl);
 });
 // <<< VakıfBank Integration End >>>
 
