@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Staj_Proje_1.Models;
 using Staj_Proje_1.Services;
 using System.Text.Json.Serialization;
+using Staj_Proje_1.Models.Dtos;
 
 namespace Staj_Proje_1.Controllers
 {

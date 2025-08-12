@@ -1,3 +1,5 @@
+using Staj_Proje_1.Models.Entities;
+
 namespace Staj_Proje_1.Models
 {
     public class Transaction
@@ -14,6 +16,7 @@ namespace Staj_Proje_1.Models
         public int TransactionType { get; set; }
         public string TransactionId { get; set; } = string.Empty;
 
+        // Account tablosu ile ilişki
         public Account? Account { get; set; }
     }
 }

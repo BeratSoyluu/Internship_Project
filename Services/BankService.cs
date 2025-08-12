@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using Staj_Proje_1.Models;
+using Staj_Proje_1.Models.Dtos;
 
 namespace Staj_Proje_1.Services;
 
@@ -42,7 +43,7 @@ public class BankService : IBankService
         };
 
         using var res  = await _http.SendAsync(req, ct);
-        var       body = await res.Content.ReadAsStringAsync(); // ct'li overload da var; istersen kullan
+        var       body = await res.Content.ReadAsStringAsync(ct);
 
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"token HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
@@ -63,21 +64,35 @@ public class BankService : IBankService
     {
         PrepareDefaultHeaders(accessToken);
 
-        // Program.cs'de BaseAddress ayarlı → relatif path
-        var url = "accounts"; // Gerekiyorsa gerçek path ile değiştir
+        var baseUrl = _cfg["VakifBank:BaseUrl"] ?? throw new InvalidOperationException("VakifBank:BaseUrl yok");
+        var path    = _cfg["VakifBank:AccountsPath"] ?? throw new InvalidOperationException("VakifBank:AccountsPath yok");
 
-        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        // Mutlak URL oluştur
+        var full = new Uri(new Uri(baseUrl, UriKind.Absolute), path); // kök + /versiyonlu/path
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, full);
+
+        // VakıfBank gateway genelde bu header’ları bekler (eksikse bazen 404 döndürür):
+        req.Headers.Add("x-ibm-client-id", _cfg["VakifBank:ClientId"]);
+        req.Headers.Add("x-consent-id", _cfg["VakifBank:ConsentId"]);
+        req.Headers.Add("x-resource-indicator", _cfg["VakifBank:ResourceEnvironment"]);
+        // req.Headers.Add("x-fapi-interaction-id", Guid.NewGuid().ToString()); // gerekiyorsa aç
+
         using var res  = await _http.SendAsync(req, ct);
-        var       body = await res.Content.ReadAsStringAsync();
+        var       body = await res.Content.ReadAsStringAsync(ct);
+
+        // Teşhis için log
+        Console.WriteLine($"[DEBUG] GET {full} -> {(int)res.StatusCode}");
 
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"accountList HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
 
-        return JsonSerializer.Deserialize<AccountListResponse>(
-            body,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-        ) ?? new AccountListResponse();
+        return JsonSerializer.Deserialize<AccountListResponse>(body,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? new AccountListResponse();
     }
+
+
 
     // ------------------- Hesap Detayı -------------------
     public async Task<AccountDetailResponse> GetAccountDetailAsync(string accessToken, string accountNumber, CancellationToken ct = default)
@@ -96,7 +111,7 @@ public class BankService : IBankService
         };
 
         using var res  = await _http.SendAsync(req, ct);
-        var       body = await res.Content.ReadAsStringAsync();
+        var       body = await res.Content.ReadAsStringAsync(ct);
 
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"accountDetail HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
@@ -131,7 +146,7 @@ public class BankService : IBankService
 
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         using var res  = await _http.SendAsync(req, ct);
-        var       body = await res.Content.ReadAsStringAsync();
+        var       body = await res.Content.ReadAsStringAsync(ct);
 
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"transactions HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");

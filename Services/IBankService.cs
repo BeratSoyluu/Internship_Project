@@ -32,5 +32,9 @@ public interface IBankService
     // ------------------- Hareketler ----------------------
 
     /// <summary>Belirtilen hesabın işlem/hareket listesini döner.</summary>
-    Task<TransactionsResponse> GetAccountTransactionsAsync(string accessToken, string accountNumber, CancellationToken ct = default);
+    Task<TransactionsResponse> GetAccountTransactionsAsync(
+    string accessToken,
+    string accountNumber,
+    CancellationToken ct = default);
+
 }
