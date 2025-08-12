@@ -16,18 +16,25 @@ export class RegisterComponent {
   router = inject(Router);
 
   loading = false;
+
   form = this.fb.group({
-    name: ['', Validators.required],
+    username: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]]
+    password: ['', [Validators.required, Validators.minLength(6)]],
+    balance: [null] // opsiyonel
   });
 
   async onSubmit() {
     if (this.form.invalid) return;
     this.loading = true;
+
+    // şimdilik mock register; backend gelince balance/username de göndeririz
     const ok = await this.auth.register(
-      this.form.value.name!, this.form.value.email!, this.form.value.password!
+      this.form.value.username || '',
+      this.form.value.email || '',
+      this.form.value.password || ''
     );
+
     this.loading = false;
     if (ok) this.router.navigateByUrl('/accounts');
   }
