@@ -1,0 +1,63 @@
+<div class="auth-grid">
+  <!-- LEFT: form -->
+  <div class="auth-left">
+    <h1 class="auth-title">Login</h1>
+
+    <h2 class="auth-welcome">Welcome back</h2>
+    <p class="auth-sub">Please enter your details</p>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+      <div class="input-wrap">
+        <span class="input-icon" aria-hidden="true">
+          <!-- mail icon -->
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/>
+          </svg>
+        </span>
+        <input type="email" formControlName="email" placeholder="Email" />
+      </div>
+      <div class="err" *ngIf="form.get('email')?.invalid && form.get('email')?.touched">Email is required</div>
+
+      <div class="input-wrap">
+        <span class="input-icon" aria-hidden="true">
+          <!-- lock icon -->
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </span>
+        <input type="password" formControlName="password" placeholder="Password" />
+      </div>
+      <div class="err" *ngIf="form.get('password')?.invalid && form.get('password')?.touched">Password is required</div>
+
+      <div class="row-between">
+        <span></span>
+        <a class="link" href="#">Forgot password?</a>
+      </div>
+
+      <button class="btn-primary" [disabled]="form.invalid || loading">
+        {{ loading ? 'Please wait...' : 'Sign in' }}
+      </button>
+    </form>
+
+    <p class="auth-bottom">
+      Don't have an account? <a routerLink="/register" class="link">Sign up</a>
+    </p>
+  </div>
+
+  <!-- RIGHT: banks -->
+  <div class="auth-right">
+    <button type="button" class="bank-tile" (click)="router.navigateByUrl('/accounts')">
+      <div class="bank-logo">
+        <!-- VakıfBank placeholder -->
+        <strong>VakıfBank</strong>
+      </div>
+    </button>
+
+    <button type="button" class="bank-tile" (click)="router.navigateByUrl('/accounts')">
+      <div class="bank-logo">
+        <!-- MyBank placeholder -->
+        <strong>MyBank</strong>
+      </div>
+    </button>
+  </div>
+</div>

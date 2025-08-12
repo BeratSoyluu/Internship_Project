@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Staj_Proje_1.Models;
 
 // Bu kod, kullanıcı yönetimi (Identity) tablolarını EF Core üzerinden kullanmanızı; ApplicationUser varlığınıza özel ayarları (örneğin bakiye için ondalık hassasiyet) da eklemenizi sağlayan “veritabanı bağlamı” (DbContext) tanımıdır.
 

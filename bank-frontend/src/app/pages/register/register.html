@@ -1,0 +1,13 @@
+<div class="container">
+  <h2>Register</h2>
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <label>Name</label>
+    <input type="text" formControlName="name">
+    <label>Email</label>
+    <input type="email" formControlName="email">
+    <label>Password</label>
+    <input type="password" formControlName="password">
+    <button [disabled]="form.invalid || loading">{{ loading ? 'Please wait...' : 'Create account' }}</button>
+  </form>
+  <p>Already have an account? <a routerLink="/login">Login</a></p>
+</div>

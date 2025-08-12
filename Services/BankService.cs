@@ -1,209 +1,159 @@
 // Services/BankService.cs
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
+#nullable enable
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Staj_Proje_1.Models;     // <-- MODELLER BURADA
-using Staj_Proje_1.Services;   // <-- IBankService buras
- // <-- IBankService ile aynı namespace
+using System.Threading;
+using Staj_Proje_1.Models;
 
-namespace Staj_Proje_1.Services
+namespace Staj_Proje_1.Services;
+
+public class BankService : IBankService
 {
-    /// <summary>
-    /// VakıfBank API çağrılarını gerçekleştiren servis.
-    /// </summary>
-    public class BankService : IBankService
+    private readonly HttpClient _http;
+    private readonly IConfiguration _cfg;
+
+    public BankService(HttpClient http, IConfiguration cfg)
     {
-        private readonly HttpClient _http;
-        private readonly IConfiguration _cfg;
+        _http = http;
+        _cfg = cfg;
+    }
 
-        public BankService(HttpClient http, IConfiguration cfg)
+    // ------------------- Token -------------------
+    public async Task<string> GetTokenAsync(CancellationToken ct = default)
+    {
+        var tokenUrl = _cfg["VakifBank:TokenUrl"];
+        if (string.IsNullOrWhiteSpace(tokenUrl))
+            throw new InvalidOperationException("VakifBank:TokenUrl appsettings.json içinde tanımlı değil.");
+
+        var form = new Dictionary<string, string>
         {
-            _http = http;
-            _cfg  = cfg;
-        }
+            ["client_id"]     = _cfg["VakifBank:ClientId"]!.Trim(),
+            ["client_secret"] = _cfg["VakifBank:ClientSecret"]!.Trim(),
+            ["grant_type"]    = _cfg["VakifBank:GrantType"]!.Trim(),
+            ["scope"]         = _cfg["VakifBank:Scope"]!.Trim(),
+            ["consentId"]     = _cfg["VakifBank:ConsentId"]!.Trim(),
+            ["resource"]      = _cfg["VakifBank:ResourceEnvironment"]!.Trim()
+        };
 
-        // -------------------------------------------------------------
-        // 1) TOKEN
-        // -------------------------------------------------------------
-        public async Task<string> GetTokenAsync()
+        using var req = new HttpRequestMessage(HttpMethod.Post, tokenUrl)
         {
-            _http.DefaultRequestHeaders.Authorization = null;   // Header temizle
+            Content = new FormUrlEncodedContent(form)
+        };
 
-            var form = new Dictionary<string, string>
-            {
-                ["client_id"]     = _cfg["VakifBank:ClientId"]!.Trim(),
-                ["client_secret"] = _cfg["VakifBank:ClientSecret"]!.Trim(),
-                ["grant_type"]    = _cfg["VakifBank:GrantType"]!.Trim(),
-                ["scope"]         = _cfg["VakifBank:Scope"]!.Trim(),
-                ["consentId"]     = _cfg["VakifBank:ConsentId"]!.Trim(),
-                ["resource"]      = _cfg["VakifBank:ResourceEnvironment"]!.Trim()
-            };
+        using var res  = await _http.SendAsync(req, ct);
+        var       body = await res.Content.ReadAsStringAsync(); // ct'li overload da var; istersen kullan
 
-            using var req = new HttpRequestMessage(HttpMethod.Post, "auth/oauth/v2/token")
-            {
-                Content = new FormUrlEncodedContent(form)
-            };
+        if (!res.IsSuccessStatusCode)
+            throw new ApplicationException($"token HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
 
-            var res  = await _http.SendAsync(req);
-            var body = await res.Content.ReadAsStringAsync();
-            if (!res.IsSuccessStatusCode)
-                throw new ApplicationException($"VakifBank token error ({res.StatusCode}): {body}");
+        using var doc = JsonDocument.Parse(body);
+        var accessToken = doc.RootElement.TryGetProperty("access_token", out var at)
+            ? at.GetString()
+            : null;
 
-            var dto = JsonSerializer.Deserialize<TokenResponse>(body,
-                       new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-            return dto.AccessToken;
-        }
+        if (string.IsNullOrWhiteSpace(accessToken))
+            throw new ApplicationException("Token yanıtında 'access_token' bulunamadı.");
 
-        // -------------------------------------------------------------
-        // 2) HESAP LİSTESİ  (IBankService ile uyumlu: Task<AccountListResponse>)
-        // -------------------------------------------------------------
-        public async Task<AccountListResponse> GetAccountListAsync(string token)
+        return accessToken!;
+    }
+
+    // ------------------- Hesap Listesi -------------------
+    public async Task<AccountListResponse> GetAccountListAsync(string accessToken, CancellationToken ct = default)
+    {
+        PrepareDefaultHeaders(accessToken);
+
+        // Program.cs'de BaseAddress ayarlı → relatif path
+        var url = "accounts"; // Gerekiyorsa gerçek path ile değiştir
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        using var res  = await _http.SendAsync(req, ct);
+        var       body = await res.Content.ReadAsStringAsync();
+
+        if (!res.IsSuccessStatusCode)
+            throw new ApplicationException($"accountList HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
+
+        return JsonSerializer.Deserialize<AccountListResponse>(
+            body,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+        ) ?? new AccountListResponse();
+    }
+
+    // ------------------- Hesap Detayı -------------------
+    public async Task<AccountDetailResponse> GetAccountDetailAsync(string accessToken, string accountNumber, CancellationToken ct = default)
+    {
+        PrepareDefaultHeaders(accessToken);
+
+        var url = "account/detail"; // Gerekiyorsa gerçek path ile değiştir
+        var payload = new { AccountNumber = accountNumber };
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            _http.DefaultRequestHeaders.Clear();
-            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            _http.DefaultRequestHeaders.Accept.Clear();
-            _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            Content = new StringContent(
+                JsonSerializer.Serialize(payload),
+                Encoding.UTF8,
+                "application/json")
+        };
 
-            // Eğer HttpClient.BaseAddress zaten app startup'ta ayarlıysa sadece relatif path kullan:
-            // var url = "accounts";
-            var url = $"{_cfg["VakifBank:BaseUrl"]}/accounts"; // BaseAddress ayarlı değilse tam URL kullan
+        using var res  = await _http.SendAsync(req, ct);
+        var       body = await res.Content.ReadAsStringAsync();
 
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        if (!res.IsSuccessStatusCode)
+            throw new ApplicationException($"accountDetail HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
 
-            // Zorunlu özel header’lar varsa (bankanın dokümanına göre) ekle:
-            // req.Headers.Add("x-consent-id", _cfg["VakifBank:ConsentId"]);
-            // req.Headers.Add("x-resource-indicator", _cfg["VakifBank:ResourceEnvironment"]);
-            // req.Headers.Add("x-ibm-client-id", _cfg["VakifBank:ClientId"]);
+        return JsonSerializer.Deserialize<AccountDetailResponse>(
+            body,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+        ) ?? new AccountDetailResponse();
+    }
 
-            using var res = await _http.SendAsync(req);
-            var body = await res.Content.ReadAsStringAsync();
+    // ------------------- Hesap Özet Bilgisi -------------------
+    public async Task<AccountInfo> GetAccountInfoAsync(string accessToken, string accountNumber, CancellationToken ct = default)
+    {
+        // Basit implementasyon: listeyi al, numaraya göre bul
+        var list = await GetAccountListAsync(accessToken, ct);
+        var info = list.Data?.Accounts?.FirstOrDefault(a =>
+            string.Equals(a.AccountNumber, accountNumber, StringComparison.OrdinalIgnoreCase));
 
-            if (!res.IsSuccessStatusCode)
-                throw new Exception($"AccountList hatası: {(int)res.StatusCode} {res.ReasonPhrase}\nBody: {body}");
+        if (info == null)
+            throw new ApplicationException($"Hesap bulunamadı: {accountNumber}");
 
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var dto = JsonSerializer.Deserialize<AccountListResponse>(body, options);
-            if (dto is null)
-                throw new Exception("AccountListResponse deserialize edilemedi.");
+        return info;
+    }
 
-            return dto;
-        }
+    // ------------------- Hesap Hareketleri -------------------
+    public async Task<TransactionsResponse> GetAccountTransactionsAsync(string accessToken, string accountNumber, CancellationToken ct = default)
+    {
+        PrepareDefaultHeaders(accessToken);
 
-        // -------------------------------------------------------------
-        // 3) HESAP DETAYI (tam JSON)
-        // -------------------------------------------------------------
-        public async Task<AccountDetailResponse> GetAccountDetailAsync(string token, string accountNumber)
-        {
-            _http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
+        // Kurgu path: gereğine göre değiştir
+        var url = $"accounts/{accountNumber}/transactions";
 
-            const string path = "accountDetail";
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        using var res  = await _http.SendAsync(req, ct);
+        var       body = await res.Content.ReadAsStringAsync();
 
-            var apiReq = new AccountDetailApiRequest
-            {
-                Header = new AccountDetailApiRequest.HeaderModel
-                {
-                    ChannelCode = "WEB",
-                    RequestId   = Guid.NewGuid().ToString(),
-                    RequestDate = DateTime.UtcNow.ToString("o")
-                },
-                Body = new AccountDetailApiRequest.BodyModel
-                {
-                    AccountNumber = accountNumber
-                }
-            };
+        if (!res.IsSuccessStatusCode)
+            throw new ApplicationException($"transactions HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
 
-            var res = await _http.PostAsJsonAsync(path, apiReq);
-            res.EnsureSuccessStatusCode();
+        return JsonSerializer.Deserialize<TransactionsResponse>(
+            body,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+        ) ?? new TransactionsResponse();
+    }
 
-            var raw = await res.Content.ReadAsStringAsync();
+    // ------------------- Helpers -------------------
+    private void PrepareDefaultHeaders(string accessToken)
+    {
+        _http.DefaultRequestHeaders.Clear();
+        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        _http.DefaultRequestHeaders.Accept.Clear();
+        _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            return JsonSerializer.Deserialize<AccountDetailResponse>(raw,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-        }
-
-        // -------------------------------------------------------------
-        // 4) HESAP DETAYI (yalnız "Data" düğümü) → AccountInfo
-        // -------------------------------------------------------------
-        public async Task<AccountInfo> GetAccountInfoAsync(string token, string accountNumber)
-        {
-            _http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
-
-            const string path = "accountDetail";
-
-            var apiReq = new AccountDetailApiRequest
-            {
-                Header = new AccountDetailApiRequest.HeaderModel
-                {
-                    ChannelCode = "WEB",
-                    RequestId   = Guid.NewGuid().ToString(),
-                    RequestDate = DateTime.UtcNow.ToString("o")
-                },
-                Body = new AccountDetailApiRequest.BodyModel
-                {
-                    AccountNumber = accountNumber
-                }
-            };
-
-            var res = await _http.PostAsJsonAsync(path, apiReq);
-            res.EnsureSuccessStatusCode();
-
-            var raw = await res.Content.ReadAsStringAsync();
-
-            using var doc   = JsonDocument.Parse(raw);
-            var dataJson    = doc.RootElement.GetProperty("Data").GetRawText();
-
-            var info = JsonSerializer.Deserialize<AccountInfo>(
-                           dataJson,
-                           new JsonSerializerOptions
-                           {
-                               PropertyNameCaseInsensitive = true,
-                               NumberHandling = JsonNumberHandling.AllowReadingFromString
-                           });
-            return info!;
-        }
-
-        // -------------------------------------------------------------
-        // 5) HESAP HAREKETLERİ
-        // -------------------------------------------------------------
-        public async Task<TransactionsResponse> GetAccountTransactionsAsync(string token, string accountNumber)
-        {
-            _http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
-
-            var res = await _http.PostAsJsonAsync("accountTransactions", new { AccountNumber = accountNumber });
-            res.EnsureSuccessStatusCode();
-
-            return await res.Content.ReadFromJsonAsync<TransactionsResponse>(
-                       new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-        }
-
-        // -------------------------------------------------------------
-        // 6) İÇ SINIFLAR (request şeması)
-        // -------------------------------------------------------------
-        private class AccountDetailApiRequest
-        {
-            public object Header { get; set; } = default!;
-            public object Body   { get; set; } = default!;
-
-            internal class HeaderModel
-            {
-                public string ChannelCode { get; set; } = default!;
-                public string RequestId   { get; set; } = default!;
-                public string RequestDate { get; set; } = default!;
-            }
-
-            internal class BodyModel
-            {
-                public string AccountNumber { get; set; } = default!;
-            }
-        }
+        // Gerekirse zorunlu header'ları aç:
+        // _http.DefaultRequestHeaders.Add("x-consent-id", _cfg["VakifBank:ConsentId"]);
+        // _http.DefaultRequestHeaders.Add("x-ibm-client-id", _cfg["VakifBank:ClientId"]);
+        // _http.DefaultRequestHeaders.Add("x-resource-indicator", _cfg["VakifBank:ResourceEnvironment"]);
+        // _http.DefaultRequestHeaders.Add("x-fapi-interaction-id", Guid.NewGuid().ToString());
     }
 }

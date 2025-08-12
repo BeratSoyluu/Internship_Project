@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Staj_Proje_1.Models
+namespace Staj_Proje_1.Models.Dtos
 {
     public class TransactionsResponse
     {
@@ -11,17 +11,14 @@ namespace Staj_Proje_1.Models
 
     public class TransactionsData
     {
-        // JSON’da dönülen array’in property adı farklı olabilir, 
-        // örneğin "AccountTransactions" ya da "TransactionList" vs.
-        // Postman cevabınıza bakarak aşağıdakini güncelleyin:
-
+        // Banka API’sinden gelen JSON alan adını kontrol et
+        // Gerekirse "AccountTransactions" yerine gerçek adı yaz
         [JsonPropertyName("AccountTransactions")]
-        public List<Transaction> AccountTransactions { get; set; } = new();
+        public List<TransactionDto> AccountTransactions { get; set; } = new();
     }
 
-    public class Transaction
+    public class TransactionDto
     {
-        // Aşağıdakileri Postman’daki her transaction objesinin alanlarına göre güncelleyin:
         [JsonPropertyName("TransactionDate")]
         public string TransactionDate { get; set; } = "";
 
@@ -34,6 +31,17 @@ namespace Staj_Proje_1.Models
         [JsonPropertyName("Currency")]
         public string Currency { get; set; } = "";
 
-        // Gerekiyorsa diğer alanları da ekleyin
+        // Gerekirse diğer alanları ekle
+        [JsonPropertyName("TransactionCode")]
+        public string? TransactionCode { get; set; }
+
+        [JsonPropertyName("Balance")]
+        public decimal? Balance { get; set; }
+
+        [JsonPropertyName("TransactionName")]
+        public string? TransactionName { get; set; }
+
+        [JsonPropertyName("TransactionId")]
+        public string? TransactionId { get; set; }
     }
 }
