@@ -1,6 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Staj_Proje_1.Models; // AccountListResponse, AccountDetailResponse, AccountInfo, TransactionsResponse
+using Staj_Proje_1.Models;
+using Staj_Proje_1.Models.Dtos;
+
 
 namespace Staj_Proje_1.Services
 {
@@ -28,6 +30,16 @@ namespace Staj_Proje_1.Services
             string accountNumber,
             string startDate,   // "dd-MM-yyyy"
             string endDate,     // "dd-MM-yyyy"
+            CancellationToken ct = default);
+
+        Task<BankTransferResponse> SendTransferAsync(
+            string accessToken,
+            string fromAccountNumber,
+            string toIban,
+            string toName,
+            decimal amount,
+            string currency,
+            string? description,
             CancellationToken ct = default);
     }
 }
