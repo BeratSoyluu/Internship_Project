@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Staj_Proje_1.Models;
 using Staj_Proje_1.Services;
 using System.Text.Json.Serialization;
-using Staj_Proje_1.Models.Dtos;
 
 namespace Staj_Proje_1.Controllers
 {
@@ -84,23 +83,19 @@ namespace Staj_Proje_1.Controllers
         // -------------------------------------------------------------
         [HttpPost("accountTransactions")]
         [ProducesResponseType(typeof(TransactionsResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(object),               StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> AccountTransactions([FromBody] AccountDetailRequest req)
+        public async Task<IActionResult> AccountTransactions([FromBody] AccountTransactionsRequest request)
         {
-            if (string.IsNullOrWhiteSpace(req.AccountNumber))
-                return BadRequest(new { message = "AccountNumber zorunludur." });
+            var token = await _bankService.GetTokenAsync();
+            var transactions = await _bankService.GetAccountTransactionsAsync(
+                token,
+                request.AccountNumber,
+                request.StartDate,
+                request.EndDate
+            );
 
-            try
-            {
-                var token        = await _bankService.GetTokenAsync();
-                var transactions = await _bankService.GetAccountTransactionsAsync(token, req.AccountNumber);
-                return Ok(transactions);
-            }
-            catch (ApplicationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(transactions);
         }
+
     }
 
     /// <summary>

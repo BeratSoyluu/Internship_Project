@@ -1,40 +1,33 @@
-// Services/IBankService.cs
-#nullable enable
 using System.Threading;
 using System.Threading.Tasks;
-using Staj_Proje_1.Models;
-using Staj_Proje_1.Models.Dtos;
+using Staj_Proje_1.Models; // AccountListResponse, AccountDetailResponse, AccountInfo, TransactionsResponse
 
-
-namespace Staj_Proje_1.Services;
-
-/// <summary>
-/// VakıfBank API çağrılarını soyutlayan servis arayüzü.
-/// </summary>
-public interface IBankService
+namespace Staj_Proje_1.Services
 {
-    // ------------------- Yetkilendirme -------------------
+    public interface IBankService
+    {
+        Task<string> GetTokenAsync(CancellationToken ct = default);
 
-    /// <summary>Bankadan access token alır.</summary>
-    Task<string> GetTokenAsync(CancellationToken ct = default);
+        Task<AccountListResponse> GetAccountListAsync(
+            string accessToken,
+            CancellationToken ct = default);
 
-    // ------------------- Hesaplar ------------------------
+        Task<AccountDetailResponse> GetAccountDetailAsync(
+            string accessToken,
+            string accountNumber,
+            CancellationToken ct = default);
 
-    /// <summary>Kullanıcıya ait hesap listesini döner.</summary>
-    Task<AccountListResponse> GetAccountListAsync(string accessToken, CancellationToken ct = default);
+        // <-- Controller'ın çağırdığı method
+        Task<AccountInfo> GetAccountInfoAsync(
+            string accessToken,
+            string accountNumber,
+            CancellationToken ct = default);
 
-    /// <summary>Tek bir hesaba ait detayları döner.</summary>
-    Task<AccountDetailResponse> GetAccountDetailAsync(string accessToken, string accountNumber, CancellationToken ct = default);
-
-    /// <summary>Hesap özet bilgisi (numara, IBAN, para birimi, bakiye vb.).</summary>
-    Task<AccountInfo> GetAccountInfoAsync(string accessToken, string accountNumber, CancellationToken ct = default);
-
-    // ------------------- Hareketler ----------------------
-
-    /// <summary>Belirtilen hesabın işlem/hareket listesini döner.</summary>
-    Task<TransactionsResponse> GetAccountTransactionsAsync(
-    string accessToken,
-    string accountNumber,
-    CancellationToken ct = default);
-
+        Task<TransactionsResponse> GetAccountTransactionsAsync(
+            string accessToken,
+            string accountNumber,
+            string startDate,   // "dd-MM-yyyy"
+            string endDate,     // "dd-MM-yyyy"
+            CancellationToken ct = default);
+    }
 }

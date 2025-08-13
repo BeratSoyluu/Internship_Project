@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Staj_Proje_1.Models.Dtos
+namespace Staj_Proje_1.Models
 {
     public class TransactionsResponse
     {
@@ -12,7 +12,6 @@ namespace Staj_Proje_1.Models.Dtos
     public class TransactionsData
     {
         // Banka API’sinden gelen JSON alan adını kontrol et
-        // Gerekirse "AccountTransactions" yerine gerçek adı yaz
         [JsonPropertyName("AccountTransactions")]
         public List<TransactionDto> AccountTransactions { get; set; } = new();
     }
@@ -31,7 +30,7 @@ namespace Staj_Proje_1.Models.Dtos
         [JsonPropertyName("Currency")]
         public string Currency { get; set; } = "";
 
-        // Gerekirse diğer alanları ekle
+        // Opsiyonel alanlar
         [JsonPropertyName("TransactionCode")]
         public string? TransactionCode { get; set; }
 
