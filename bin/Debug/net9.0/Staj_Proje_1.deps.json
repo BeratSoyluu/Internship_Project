@@ -13,6 +13,7 @@
           "Microsoft.AspNetCore.OpenApi": "9.0.8",
           "Microsoft.EntityFrameworkCore": "9.0.8",
           "Microsoft.EntityFrameworkCore.Design": "9.0.8",
+          "Microsoft.EntityFrameworkCore.Tools": "9.0.8",
           "Pomelo.EntityFrameworkCore.MySql": "9.0.0-rc.1.efcore.9.0.0",
           "Swashbuckle.AspNetCore": "9.0.3",
           "System.Text.Json": "9.0.8"
@@ -436,6 +437,11 @@
             "assemblyVersion": "9.0.8.0",
             "fileVersion": "9.0.825.36802"
           }
+        }
+      },
+      "Microsoft.EntityFrameworkCore.Tools/9.0.8": {
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Design": "9.0.8"
         }
       },
       "Microsoft.Extensions.ApiDescription.Server/9.0.0": {},
@@ -955,6 +961,13 @@
       "sha512": "sha512-OVhfyxiHxMvYpwQ8Jy3YZi4koy6TK5/Q7C1oq3z6db+HEGuu6x9L1BX5zDIdJxxlRePMyO4D8ORiXj/D7+MUqw==",
       "path": "microsoft.entityframeworkcore.relational/9.0.8",
       "hashPath": "microsoft.entityframeworkcore.relational.9.0.8.nupkg.sha512"
+    },
+    "Microsoft.EntityFrameworkCore.Tools/9.0.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-gtjwfJsEB5Mz5qOhdYjm+9KWJEVmVu5xxOgrxHxW6dNmhGfwdNXnNx5Nvdk6IHt0hmn0OK6MREMZEOsjrnSCfA==",
+      "path": "microsoft.entityframeworkcore.tools/9.0.8",
+      "hashPath": "microsoft.entityframeworkcore.tools.9.0.8.nupkg.sha512"
     },
     "Microsoft.Extensions.ApiDescription.Server/9.0.0": {
       "type": "package",
