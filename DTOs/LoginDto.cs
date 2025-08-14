@@ -1,6 +1,13 @@
-namespace Staj_Proje_1.DTOs;
-public class LoginDto
+using System.ComponentModel.DataAnnotations;
+
+namespace Staj_Proje_1.Models.Dtos
 {
-    public string Email { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
+    public class LoginDto
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        public string Password { get; set; } = "";
+    }
 }

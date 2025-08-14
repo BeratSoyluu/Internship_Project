@@ -1,41 +1,43 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../services/auth.service';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-register',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  templateUrl: './register.html'
+  templateUrl: './register.html',
+  styleUrls: ['./register.component.css']
 })
 export class RegisterComponent {
-  fb = inject(FormBuilder);
-  auth = inject(AuthService);
-  router = inject(Router);
+  private fb = inject(FormBuilder);
+  private http = inject(HttpClient);
+  private router = inject(Router);
 
   loading = false;
+  error = '';
 
   form = this.fb.group({
-    username: ['', Validators.required],
+    fullName: ['', Validators.required],
+    phone: ['', Validators.required],                 // istersen pattern ekleyebilirsin
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
-    balance: [null] // opsiyonel
+    password: ['', [Validators.required, Validators.minLength(6)]]
   });
 
-  async onSubmit() {
+  submit() {
     if (this.form.invalid) return;
-    this.loading = true;
+    this.loading = true; this.error = '';
 
-    // şimdilik mock register; backend gelince balance/username de göndeririz
-    const ok = await this.auth.register(
-      this.form.value.username || '',
-      this.form.value.email || '',
-      this.form.value.password || ''
-    );
-
-    this.loading = false;
-    if (ok) this.router.navigateByUrl('/accounts');
+    this.http.post('/api/auth/register', this.form.value, { withCredentials: true })
+      .subscribe({
+        next: () => this.router.navigateByUrl('/login'),
+        error: (e: HttpErrorResponse) => {
+          this.error = e?.error?.message || e?.message || 'Kayıt başarısız.';
+          this.loading = false;
+        },
+        complete: () => this.loading = false
+      });
   }
 }

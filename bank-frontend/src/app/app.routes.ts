@@ -1,15 +1,22 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './guards/auth-guard'; // veya: './guards/auth.guard'
+import { authGuard } from './guards/auth-guard';
 import { LoginComponent } from './pages/login/login.component';
 import { RegisterComponent } from './pages/register/register.component';
-import { VakifbankLoginComponent } from './pages/vakifbank-login/vakifbank-login.component';
-
 
 export const routes: Routes = [
+  // Giriş & Kayıt (korumasız)
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
-  { path: 'vakifbank-login', component: VakifbankLoginComponent },
 
+  // Login sonrası: Bağlan sayfası
+  {
+    path: 'connect',
+    loadComponent: () =>
+      import('./pages/connect/connect.component').then(m => m.ConnectComponent),
+    canActivate: [authGuard]
+  },
+
+  // (Varsa) accounts sayfası
   {
     path: 'accounts',
     loadComponent: () =>
@@ -17,8 +24,7 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
 
-  { path: '', pathMatch: 'full', redirectTo: 'login' },
-  { path: '**', redirectTo: 'login' }
+  // Varsayılan ve 404
+  { path: '', pathMatch: 'full', redirectTo: 'connect' },
+  { path: '**', redirectTo: 'connect' }
 ];
-
-

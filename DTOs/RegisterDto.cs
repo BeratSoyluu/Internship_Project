@@ -1,10 +1,19 @@
-namespace Staj_Proje_1.Models
+using System.ComponentModel.DataAnnotations;
+
+namespace Staj_Proje_1.Models.Dtos
 {
     public class RegisterDto
     {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string KullaniciAdi { get; set; } = string.Empty;
-        public decimal Bakiye { get; set; } = 0;
+        [Required]
+        public string FullName { get; set; } = "";
+
+        [Required]
+        public string Phone { get; set; } = "";
+
+        [Required, EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required, MinLength(6)]
+        public string Password { get; set; } = "";
     }
 }
