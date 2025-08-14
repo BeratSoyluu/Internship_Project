@@ -3770,6 +3770,7 @@
       "Microsoft.AspNetCore.OpenApi >= 9.0.8",
       "Microsoft.EntityFrameworkCore >= 9.0.8",
       "Microsoft.EntityFrameworkCore.Design >= 9.0.8",
+      "Microsoft.EntityFrameworkCore.Relational >= 9.0.8",
       "Microsoft.EntityFrameworkCore.Tools >= 9.0.8",
       "Pomelo.EntityFrameworkCore.MySql >= 9.0.0-rc.1.efcore.9.0.0",
       "Swashbuckle.AspNetCore >= 9.0.3",
@@ -3843,6 +3844,10 @@
           "Microsoft.EntityFrameworkCore.Design": {
             "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
             "suppressParent": "All",
+            "target": "Package",
+            "version": "[9.0.8, )"
+          },
+          "Microsoft.EntityFrameworkCore.Relational": {
             "target": "Package",
             "version": "[9.0.8, )"
           },

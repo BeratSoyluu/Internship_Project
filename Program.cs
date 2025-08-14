@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -43,47 +42,64 @@ builder.Services
         opt.Password.RequiredLength = 6;
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders(); // şifre sıfırlama vb. için gerekli
+    .AddDefaultTokenProviders();
+
+// Identity uygulama çerezi (SPA için pratik ayarlar)
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;        // SPA için Lax idealdir
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+});
 
 // -------------------------------------------------------
-// 3) JWT + Cookie (hibrit) kimlik doğrulama
-var jwtKey = builder.Configuration["Jwt:Key"];
-var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+// 3) JWT + PolicyScheme (JWT varsa onu, yoksa Identity Cookie’yi kullan)
+var jwtKey      = builder.Configuration["Jwt:Key"];
+var jwtIssuer   = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 if (string.IsNullOrWhiteSpace(jwtKey))
     throw new InvalidOperationException("Jwt:Key appsettings.json içinde tanımlı değil.");
 
-builder.Services
-    .AddAuthentication(options =>
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+
+var auth = builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = "Smart";
+    options.DefaultChallengeScheme    = "Smart";
+});
+
+// JWT
+auth.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, opt =>
+{
+    opt.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+    opt.SaveToken = true;
+    opt.TokenValidationParameters = new TokenValidationParameters
     {
-        // "Akıllı" şema: Authorization header varsa JWT, yoksa Cookie
-        options.DefaultAuthenticateScheme = "Smart";
-        options.DefaultChallengeScheme = "Smart";
-    })
-    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, opt =>
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey         = signingKey,
+        ValidateIssuer           = !string.IsNullOrWhiteSpace(jwtIssuer),
+        ValidateAudience         = !string.IsNullOrWhiteSpace(jwtAudience),
+        ValidIssuer              = jwtIssuer,
+        ValidAudience            = jwtAudience,
+        ValidateLifetime         = true,
+        ClockSkew                = TimeSpan.FromMinutes(2)
+    };
+});
+
+// PolicyScheme → Authorization header "Bearer " ise JWT; değilse Identity çerezi
+auth.AddPolicyScheme("Smart", "JWT or Cookie", opt =>
+{
+    opt.ForwardDefaultSelector = ctx =>
     {
-        opt.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer           = !string.IsNullOrWhiteSpace(jwtIssuer),
-            ValidateAudience         = !string.IsNullOrWhiteSpace(jwtAudience),
-            ValidIssuer              = jwtIssuer,
-            ValidAudience            = jwtAudience,
-            ValidateLifetime         = true,
-            ClockSkew                = TimeSpan.FromMinutes(2)
-        };
-    })
-    .AddPolicyScheme("Smart", "JWT or Cookie", opt =>
-    {
-        opt.ForwardDefaultSelector = ctx =>
-        {
-            var hasBearer = ctx.Request.Headers["Authorization"].ToString()
-                .StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
-            return hasBearer ? JwtBearerDefaults.AuthenticationScheme
-                             : IdentityConstants.ApplicationScheme; // Identity'nin cookie şeması
-        };
-    });
+        var hasBearer = ctx.Request.Headers["Authorization"]
+            .ToString()
+            .StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
+        return hasBearer ? JwtBearerDefaults.AuthenticationScheme
+                         : IdentityConstants.ApplicationScheme;
+    };
+});
 
 // -------------------------------------------------------
 // 4) Authorization
@@ -92,12 +108,11 @@ builder.Services.AddAuthorization();
 // -------------------------------------------------------
 // 5) Controllers + JSON
 builder.Services.AddControllers()
-    .AddJsonOptions(opts =>
+    .AddJsonOptions(o =>
     {
-        // "123" veya "123.45" string'lerini sayıya parse edebilir
-        opts.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString;
-        // opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // isterseniz
-        opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        o.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString;
+        // o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // istersen
     });
 
 // -------------------------------------------------------
@@ -155,6 +170,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Eğer sadece HTTP (5047) kullanıyorsan ve HTTPS dev sertifikan yoksa,
+// UseHttpsRedirection 307 ile https’e zorlayıp local akışı bozabilir.
+// İki endpoint (http+https) açıkken sorun olmaz.
+// Gerekirse aşağıdaki satırı geçici olarak yoruma alabilirsin.
 app.UseHttpsRedirection();
 
 app.UseCors(ClientCors);

@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Staj_Proje_1.Data;
 
 #nullable disable
 
-namespace Staj_Proje_1.Migrations
+namespace Staj_Proje_1.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250814082303_InitIdentity")]
+    partial class InitIdentity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -154,64 +157,6 @@ namespace Staj_Proje_1.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("MyBankAccount", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AccountName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("AccountNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<string>("BankName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("varchar(3)");
-
-                    b.Property<string>("Iban")
-                        .IsRequired()
-                        .HasMaxLength(34)
-                        .HasColumnType("varchar(34)");
-
-                    b.Property<string>("OwnerUserId")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountNumber");
-
-                    b.HasIndex("Iban")
-                        .IsUnique();
-
-                    b.HasIndex("OwnerUserId");
-
-                    b.ToTable("MyBankAccounts", (string)null);
-                });
-
             modelBuilder.Entity("Staj_Proje_1.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -237,15 +182,9 @@ namespace Staj_Proje_1.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("FirstName")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("KullaniciAdi")
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
-
-                    b.Property<string>("LastName")
-                        .HasColumnType("longtext");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("tinyint(1)");
@@ -293,6 +232,60 @@ namespace Staj_Proje_1.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Staj_Proje_1.Models.MyBankAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("Iban")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("varchar(34)");
+
+                    b.Property<string>("OwnerUserId")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountNumber");
+
+                    b.HasIndex("Iban")
+                        .IsUnique();
+
+                    b.ToTable("MyBankAccounts", (string)null);
                 });
 
             modelBuilder.Entity("Staj_Proje_1.Models.MyBankTransaction", b =>
@@ -457,19 +450,9 @@ namespace Staj_Proje_1.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MyBankAccount", b =>
-                {
-                    b.HasOne("Staj_Proje_1.Models.ApplicationUser", "OwnerUser")
-                        .WithMany()
-                        .HasForeignKey("OwnerUserId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("OwnerUser");
-                });
-
             modelBuilder.Entity("Staj_Proje_1.Models.MyBankTransaction", b =>
                 {
-                    b.HasOne("MyBankAccount", "Account")
+                    b.HasOne("Staj_Proje_1.Models.MyBankAccount", "Account")
                         .WithMany()
                         .HasForeignKey("MyBankAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -480,7 +463,7 @@ namespace Staj_Proje_1.Migrations
 
             modelBuilder.Entity("Staj_Proje_1.Models.MyBankTransfer", b =>
                 {
-                    b.HasOne("MyBankAccount", "FromAccount")
+                    b.HasOne("Staj_Proje_1.Models.MyBankAccount", "FromAccount")
                         .WithMany()
                         .HasForeignKey("FromAccountId")
                         .OnDelete(DeleteBehavior.Restrict)

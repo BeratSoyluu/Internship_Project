@@ -1,25 +1,56 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { tap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly TOKEN_KEY = 'token';
-  router = inject(Router);
+  private readonly API_URL = '/api/Auth'; // proxy.conf.json sayesinde backend'e gider
 
-  get isLoggedIn() { return !!localStorage.getItem(this.TOKEN_KEY); }
-  get token() { return localStorage.getItem(this.TOKEN_KEY); }
+  private http = inject(HttpClient);
+  private router = inject(Router);
 
-  login(email: string, password: string) {
-    return new Promise<boolean>(r => setTimeout(() => {
-      localStorage.setItem(this.TOKEN_KEY, 'mock-jwt-token'); r(true);
-    }, 500));
+  // Getter'lar
+  get isLoggedIn(): boolean {
+    return !!localStorage.getItem(this.TOKEN_KEY);
   }
 
-  register(name: string, email: string, password: string) {
-    return new Promise<boolean>(r => setTimeout(() => {
-      localStorage.setItem(this.TOKEN_KEY, 'mock-jwt-token'); r(true);
-    }, 600));
+  get token(): string | null {
+    return localStorage.getItem(this.TOKEN_KEY);
   }
 
-  logout() { localStorage.removeItem(this.TOKEN_KEY); this.router.navigateByUrl('/login'); }
+  // Login
+  login(email: string, password: string): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/login`, { email, password }).pipe(
+      tap(res => {
+        if (res && res.token) {
+          localStorage.setItem(this.TOKEN_KEY, res.token);
+        }
+      })
+    );
+  }
+
+  // Register
+  register(firstName: string, lastName: string, email: string, password: string): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/register`, {
+      firstName,
+      lastName,
+      email,
+      password
+    }).pipe(
+      tap(res => {
+        if (res && res.token) {
+          localStorage.setItem(this.TOKEN_KEY, res.token);
+        }
+      })
+    );
+  }
+
+  // Logout
+  logout(): void {
+    localStorage.removeItem(this.TOKEN_KEY);
+    this.router.navigateByUrl('/login');
+  }
 }

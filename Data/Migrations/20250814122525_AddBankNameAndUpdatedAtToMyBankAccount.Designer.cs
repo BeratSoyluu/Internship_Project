@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Staj_Proje_1.Data;
 
 #nullable disable
 
-namespace Staj_Proje_1.Migrations
+namespace Staj_Proje_1.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250814122525_AddBankNameAndUpdatedAtToMyBankAccount")]
+    partial class AddBankNameAndUpdatedAtToMyBankAccount
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -190,6 +193,7 @@ namespace Staj_Proje_1.Migrations
                         .HasColumnType("varchar(34)");
 
                     b.Property<string>("OwnerUserId")
+                        .IsRequired()
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("PhoneNumber")
@@ -462,7 +466,8 @@ namespace Staj_Proje_1.Migrations
                     b.HasOne("Staj_Proje_1.Models.ApplicationUser", "OwnerUser")
                         .WithMany()
                         .HasForeignKey("OwnerUserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("OwnerUser");
                 });

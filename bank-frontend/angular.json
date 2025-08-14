@@ -64,7 +64,8 @@
               "buildTarget": "bank-frontend:build:production"
             },
             "development": {
-              "buildTarget": "bank-frontend:build:development"
+              "buildTarget": "bank-frontend:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
