@@ -7,6 +7,8 @@ using System.Text.Json;
 using System.Threading;
 using Staj_Proje_1.Models;
 using Staj_Proje_1.Models.Dtos; // TransactionsResponse, BankTransferResponse
+using Staj_Proje_1.Utils;
+
 
 namespace Staj_Proje_1.Services;
 
@@ -165,14 +167,17 @@ public class BankService : IBankService
     }
 
     // ------------------- Hesap Hareketleri (tarih aralığıyla) -------------------
-    public async Task<TransactionsResponse> GetAccountTransactionsAsync(
+        public async Task<TransactionsResponse> GetAccountTransactionsAsync(
         string accessToken,
-        string accountNumber,
-        string startDate,   // "dd-MM-yyyy"
-        string endDate,     // "dd-MM-yyyy"
+        string AccountNumber,
+        string StartDate,   // "dd-MM-yyyy"
+        string EndDate,     // "dd-MM-yyyy"
         CancellationToken ct = default)
     {
         PrepareDefaultHeaders(accessToken);
+        // İsteğe bağlı: Accept'i garanti altına al
+        if (!_http.DefaultRequestHeaders.Accept.Any(h => h.MediaType == "application/json"))
+            _http.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
         static string ToApiDateTime(string d, bool endOfDay)
         {
@@ -181,38 +186,41 @@ public class BankService : IBankService
                 new CultureInfo("tr-TR"),
                 DateTimeStyles.None,
                 out var dt);
-            if (!ok) throw new ArgumentException($"Geçersiz tarih: {d}. Beklenen format: dd-MM-yyyy");
 
-            dt = endOfDay ? dt.Date.AddHours(23).AddMinutes(59).AddSeconds(59) : dt.Date;
-            return dt.ToString("yyyy-MM-dd'T'HH:mm:ss");
+            if (!ok)
+                throw new ArgumentException($"Geçersiz tarih: {d}. Beklenen format: dd-MM-yyyy");
+
+            var local = endOfDay
+                ? dt.Date.AddHours(23).AddMinutes(59).AddSeconds(59)
+                : dt.Date;
+
+            var dto = new DateTimeOffset(local, TimeSpan.FromHours(3));
+            return dto.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
         }
 
-        var apiStart = ToApiDateTime(startDate, endOfDay: false);
-        var apiEnd   = ToApiDateTime(endDate,   endOfDay: true);
+        var apiStart = ToApiDateTime(StartDate, endOfDay: false);
+        var apiEnd   = ToApiDateTime(EndDate,   endOfDay: true);
 
         var baseUrl = _cfg["VakifBank:BaseUrl"]
             ?? throw new InvalidOperationException("VakifBank:BaseUrl yok");
         var path = _cfg["VakifBank:AccountTransactionsPath"] ?? "/accountTransactions";
         var full = new Uri(new Uri(baseUrl, UriKind.Absolute), path);
 
-        var accountNoNoLeading = accountNumber.TrimStart('0');
-
         var payload = new
         {
-            accountNumber = accountNumber,
-            accountNo     = accountNoNoLeading,
-            startDate     = apiStart,
-            endDate       = apiEnd
+            AccountNumber = AccountNumber, // PascalCase
+            StartDate     = apiStart,
+            EndDate       = apiEnd
         };
 
         Console.WriteLine("[DEBUG] URL: " + full);
-        Console.WriteLine("[DEBUG] Payload: " + JsonSerializer.Serialize(payload, Camel));
+        Console.WriteLine("[DEBUG] Payload: " + JsonSerializer.Serialize(payload));
         Console.WriteLine("[DEBUG] Headers: " +
             string.Join("; ", _http.DefaultRequestHeaders.Select(h => $"{h.Key}={string.Join(",", h.Value)}")));
 
         using var req = new HttpRequestMessage(HttpMethod.Post, full)
         {
-            Content = new StringContent(JsonSerializer.Serialize(payload, Camel), Encoding.UTF8, "application/json")
+            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
         };
 
         req.Headers.Add("x-ibm-client-id", _cfg["VakifBank:ClientId"]);
@@ -221,17 +229,23 @@ public class BankService : IBankService
         req.Headers.Add("x-fapi-interaction-id", Guid.NewGuid().ToString());
 
         using var res  = await _http.SendAsync(req, ct);
-        var       body = await res.Content.ReadAsStringAsync(ct);
+        var body = await res.Content.ReadAsStringAsync(ct);
 
         Console.WriteLine($"[DEBUG] POST {full} -> {(int)res.StatusCode}");
         Console.WriteLine("[DEBUG] RAW RESPONSE: " + body);
 
+        // Hata kontrolü (body'yi loglayıp anlaşılır exception)
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"accountTransactions HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
 
-        return JsonSerializer.Deserialize<TransactionsResponse>(body, JsonOpts)
-               ?? new TransactionsResponse();
+        // Amount için esnek converter ekle
+        var opts = new JsonSerializerOptions(JsonOpts);
+        opts.Converters.Add(new DecimalFlexibleConverter());
+
+        return JsonSerializer.Deserialize<TransactionsResponse>(body, opts)
+            ?? new TransactionsResponse();
     }
+
 
     // ------------------- Para Transferi (gerçek çağrı) -------------------
     public async Task<BankTransferResponse> SendTransferAsync(
