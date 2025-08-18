@@ -1,3 +1,4 @@
+// src/app/app.ts
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
@@ -5,6 +6,7 @@ import { RouterOutlet } from '@angular/router';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet],
-  templateUrl: './app.html'
+  // Kök bileşen sadece router-outlet içerir
+  template: `<router-outlet></router-outlet>`
 })
 export class AppComponent {}

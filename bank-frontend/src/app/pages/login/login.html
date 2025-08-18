@@ -2,14 +2,17 @@
   <div class="login-card">
     <h1 class="title">MyBank Giriş</h1>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="form">
-      <label class="lbl">E-posta</label>
-      <input class="input" type="email" formControlName="email" placeholder="ornek@mybank.com" />
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form" novalidate>
+      <label class="lbl" for="email">E-posta</label>
+      <input id="email" class="input" type="email"
+             formControlName="email" placeholder="ornek@mybank.com" autocomplete="email" />
 
-      <label class="lbl">Şifre</label>
-      <input class="input" type="password" formControlName="password" placeholder="••••••••" />
+      <label class="lbl" for="password">Şifre</label>
+      <input id="password" class="input" type="password"
+             formControlName="password" placeholder="••••••••" autocomplete="current-password" />
 
-      <button class="btn" [disabled]="form.invalid || loading">
+      <!-- Sadece submit butonu, routerLink yok -->
+      <button class="btn" type="submit" [disabled]="form.invalid || loading">
         {{ loading ? 'Giriş yapılıyor…' : 'Giriş Yap' }}
       </button>
 

@@ -8,23 +8,32 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
 
-  // Login sonrası: Bağlan sayfası
+  // Login sonrası ekranlar (korumalı)
+  {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./pages/dashboard/dashboard.component')
+        .then(m => m.DashboardComponent),   // ✅ isim düzeltildi
+    canActivate: [authGuard]
+  },
   {
     path: 'connect',
     loadComponent: () =>
-      import('./pages/connect/connect.component').then(m => m.ConnectComponent),
+      import('./pages/connect/connect.component')
+        .then(m => m.ConnectComponent),
     canActivate: [authGuard]
   },
-
-  // (Varsa) accounts sayfası
   {
     path: 'accounts',
     loadComponent: () =>
-      import('./pages/accounts/accounts.component').then(m => m.AccountsComponent),
+      import('./pages/accounts/accounts.component')
+        .then(m => m.AccountsComponent),
     canActivate: [authGuard]
   },
 
-  // Varsayılan ve 404
-  { path: '', pathMatch: 'full', redirectTo: 'connect' },
-  { path: '**', redirectTo: 'connect' }
+  // Varsayılan route: login
+  { path: '', pathMatch: 'full', redirectTo: 'login' },
+
+  // 404 → login
+  { path: '**', redirectTo: 'login' }
 ];

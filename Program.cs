@@ -122,6 +122,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Staj_Proje_1 API", Version = "v1" });
 
+    // 🔧 Şema adı çakışmalarını çöz: schemaId = FullName
+    c.CustomSchemaIds(t => t.FullName?.Replace('+', '.'));
+
     var jwtScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -159,6 +162,9 @@ builder.Services.AddHttpClient<IBankService, BankService>(client =>
     client.BaseAddress = new Uri(baseUrl);
 });
 
+// 8.1) Open Banking (aggregator) service kayıt
+builder.Services.AddScoped<IOpenBankingService, OpenBankingService>();
+
 // -------------------------------------------------------
 var app = builder.Build();
 
@@ -170,10 +176,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Eğer sadece HTTP (5047) kullanıyorsan ve HTTPS dev sertifikan yoksa,
-// UseHttpsRedirection 307 ile https’e zorlayıp local akışı bozabilir.
-// İki endpoint (http+https) açıkken sorun olmaz.
-// Gerekirse aşağıdaki satırı geçici olarak yoruma alabilirsin.
+// Eğer yalnızca HTTP (5047) kullanıyorsan ve HTTPS dev sertifikan yoksa,
+// UseHttpsRedirection 307 ile https’e zorlayabilir. Gerekirse yoruma al.
 app.UseHttpsRedirection();
 
 app.UseCors(ClientCors);
