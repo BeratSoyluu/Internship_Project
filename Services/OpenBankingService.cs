@@ -1,35 +1,45 @@
+using System.Linq;
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
+using Staj_Proje_1.Data;
 using Staj_Proje_1.Models.OpenBanking;
 
 namespace Staj_Proje_1.Services;
 
 public class OpenBankingService : IOpenBankingService
 {
-    private readonly IBankService _vakif; // Senin mevcut VakıfBank servisin
+    private readonly ApplicationDbContext _db;
 
-    public OpenBankingService(IBankService vakif)
-    {
-        _vakif = vakif;
-    }
+    public OpenBankingService(ApplicationDbContext db) => _db = db;
 
-    public Task<IEnumerable<BankDto>> GetLinkedBanksAsync(string userId, CancellationToken ct = default)
+    public async Task<IEnumerable<BankDto>> GetLinkedBanksAsync(string userId, CancellationToken ct = default)
     {
-        // TODO: Gerçekte DB'den oku (userId'ye bağlı bağlantılar)
-        var list = new List<BankDto>
+        var hasMyBank = await _db.MyBankAccounts
+            .AsNoTracking()
+            .AnyAsync(a => a.OwnerUserId == userId, ct);
+
+        // Hesap yoksa null döner; ?? 0m ile 0'a düşürürüz
+        var myBankBalance = await _db.MyBankAccounts
+            .AsNoTracking()
+            .Where(a => a.OwnerUserId == userId)
+            .SumAsync(a => (decimal?)a.Balance, ct) ?? 0m;
+
+        var vakifBalance = 12345.67m; // şimdilik dummy
+
+        return new[]
         {
-            new("vakif-1","VakıfBank", BankCode.vakif, 12345.67m, true),
-            new("mybank-1","MyBank", BankCode.mybank, 0m, false)
+            new BankDto("vakif-1", "VakıfBank", BankCode.vakif, vakifBalance, true),
+            new BankDto("mybank-1", "MyBank",  BankCode.mybank, myBankBalance, hasMyBank)
         };
-        return Task.FromResult(list.AsEnumerable());
     }
 
     public Task<BankDto> LinkBankAsync(string userId, LinkBankRequest req, CancellationToken ct = default)
     {
-        // TODO: Gerçekte OAuth/consent akışını başlat, sonra DB'ye kaydet
         var dto = req.BankCode switch
         {
-            BankCode.vakif => new BankDto("vakif-1","VakıfBank", BankCode.vakif, 0m, true),
-            BankCode.mybank => new BankDto("mybank-1","MyBank", BankCode.mybank, 0m, true),
-            _ => throw new ArgumentOutOfRangeException()
+            BankCode.vakif  => new BankDto("vakif-1","VakıfBank", BankCode.vakif, 0m, true),
+            BankCode.mybank => new BankDto("mybank-1","MyBank",  BankCode.mybank, 0m, true),
+            _               => throw new ArgumentOutOfRangeException(nameof(req.BankCode))
         };
         return Task.FromResult(dto);
     }
@@ -38,33 +48,69 @@ public class OpenBankingService : IOpenBankingService
     {
         if (bank == BankCode.vakif)
         {
-            // TODO: Burayı gerçek VakıfBank çağrınla değiştir
-            // var token = await _vakif.GetTokenAsync(ct);
-            // var accountList = await _vakif.GetAccountListAsync(token, ct);
-            // Map -> AccountDto
             return new[]
             {
                 new AccountDto("acc-1", BankCode.vakif, "Vadesiz Hesap", "TR12 3456 **** **** 6789", 10234.56m, "TRY"),
                 new AccountDto("acc-2", BankCode.vakif, "Birikim Hesap", "TR23 4567 **** **** 7890", 13222.22m, "TRY")
             };
         }
-        else
-        {
-            // MyBank henüz dummy
+
+        // === MyBank: giriş yapan kullanıcının IBAN ve bakiyesi ===
+        var acc = await _db.MyBankAccounts
+            .AsNoTracking()
+            .Where(a => a.OwnerUserId == userId)
+            .Select(a => new
+            {
+                a.Id,
+                a.Iban,
+                Balance  = (decimal?)a.Balance,   // nullable yakala
+                a.Currency
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (acc is null)
             return Array.Empty<AccountDto>();
-        }
+
+        var ibanMasked = MaskIban(acc.Iban);
+
+        return new[]
+        {
+            new AccountDto(
+                acc.Id.ToString(),
+                BankCode.mybank,
+                "Vadesiz Hesap",
+                ibanMasked,
+                acc.Balance ?? 0m,                         // << burada null'u 0'a çevir
+                string.IsNullOrWhiteSpace(acc.Currency) ? "TRY" : acc.Currency!
+            )
+        };
+
     }
 
     public Task<IEnumerable<TransactionDto>> GetRecentTransactionsAsync(string userId, BankCode bank, int take = 5, CancellationToken ct = default)
     {
-        // Dummy veriler
         var now = DateTime.UtcNow;
         var list = new List<TransactionDto>
         {
             new("tx-1", bank, now.AddDays(-1), "Restoran", -300m, "TRY"),
-            new("tx-2", bank, now.AddDays(-1), "Havale", +1000m, "TRY"),
-            new("tx-3", bank, now.AddDays(-2), "Fatura Ödemesi", -350m, "TRY")
-        }.Take(take);
-        return Task.FromResult(list);
+            new("tx-2", bank, now.AddDays(-1), "Havale",   1000m, "TRY"),
+            new("tx-3", bank, now.AddDays(-2), "Fatura",   -350m, "TRY")
+        };
+        return Task.FromResult(list.Take(take));
+    }
+
+    private static string MaskIban(string? iban)
+    {
+        if (string.IsNullOrWhiteSpace(iban)) return "TR** **** **** **** **** **";
+        var clean = Regex.Replace(iban, @"\s+", "");
+        if (clean.Length <= 10) return clean;
+
+        var start = clean[..6];
+        var end   = clean[^4..];
+        var middle = new string('*', clean.Length - 10);
+        var masked = start + middle + end;
+
+        // 4'lü gruplar halinde boşlukla biçimlendir
+        return Regex.Replace(masked, ".{4}", "$0 ").Trim();
     }
 }

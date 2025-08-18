@@ -1,91 +1,63 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { OpenBankingService } from '../../core/services/open-banking.service';
-import { AccountDto, BankCode, BankDto, TransactionDto } from '../../core/models/open-banking.models';
+import { AuthService } from '../../services/auth.service';
+import { BankDto, BankCode, AccountDto, TransactionDto } from '../../core/models/open-banking.models';
 
 @Component({
-  standalone: true,
   selector: 'app-dashboard',
-  imports: [CommonModule, FormsModule],
+  standalone: true,
+  imports: [CommonModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css'],
 })
 export class DashboardComponent implements OnInit {
   private api = inject(OpenBankingService);
+  private auth = inject(AuthService);
 
   banks = signal<BankDto[]>([]);
-  selectedBank = signal<BankCode>('vakif');
+  selectedBank = signal<BankCode | null>(null);
   accounts = signal<AccountDto[]>([]);
   recent = signal<TransactionDto[]>([]);
-  loading = signal<boolean>(false);
 
-  // Modal state
-  showAddModal = signal<boolean>(false);
-  addBankCode: BankCode = 'vakif';
-
-  // Toplam TRY bakiyesi
-  totalTRY = computed(() =>
-    this.accounts().reduce((s, a) => s + (a.currency === 'TRY' ? a.balance : 0), 0)
-  );
+  // seçili bankanın adı (UI için)
+  selectedBankName = computed(() => {
+    const code = this.selectedBank();
+    const b = this.banks().find(x => x.code === code);
+    return b?.name ?? '';
+  });
 
   ngOnInit() {
     this.loadBanks();
   }
 
   loadBanks() {
-    this.loading.set(true);
     this.api.getLinkedBanks().subscribe({
-      next: (bs) => {
-        this.banks.set(bs);
-        // Varsayılan seçim: bağlı ilk banka; yoksa 'vakif'
-        const connected = bs.find((b) => b.connected)?.code as BankCode | undefined;
-        if (connected) this.selectedBank.set(connected);
-        this.loadBankData();
-      },
-      error: () => this.loading.set(false),
+      next: (list) => this.banks.set(list),
     });
   }
 
-  onSelectBank(code: BankCode) {
-    if (this.selectedBank() !== code) {
-      this.selectedBank.set(code);
-      this.loadBankData();
-    }
-  }
+  selectBank(code: BankCode) {
+    if (this.selectedBank() === code) return;
+    this.selectedBank.set(code);
+    this.accounts.set([]);
+    this.recent.set([]);
 
-  loadBankData() {
-    const bank = this.selectedBank();
-    this.loading.set(true);
-    this.api.getAccounts(bank).subscribe({
-      next: (accs) => {
-        this.accounts.set(accs);
-        this.api.getRecentTransactions(bank, 5).subscribe({
-          next: (tx) => {
-            this.recent.set(tx);
-            this.loading.set(false);
-          },
-          error: () => this.loading.set(false),
-        });
-      },
-      error: () => this.loading.set(false),
-    });
+    this.api.getAccounts(code).subscribe(a => this.accounts.set(a));
+    this.api.getRecentTransactions(code, 5).subscribe(tx => this.recent.set(tx));
   }
 
   openAddBank() {
-    this.showAddModal.set(true);
-  }
-  closeAddBank() {
-    this.showAddModal.set(false);
+    // Basit akış: prompt ile banka seçelim; sonra backend’e gönderelim.
+    const bank = (prompt('Hangi banka eklensin? (vakif / mybank)') || '').toLowerCase().trim();
+    if (bank !== 'vakif' && bank !== 'mybank') return;
+
+    this.api.linkNewBank(bank as BankCode).subscribe({
+      next: () => this.loadBanks()
+    });
   }
 
-  confirmAddBank() {
-    this.api.linkBank({ bankCode: this.addBankCode }).subscribe({
-      next: () => {
-        this.closeAddBank();
-        this.loadBanks();
-      },
-      error: () => this.closeAddBank(),
-    });
+  logout() {
+    this.auth.logout(); // seni login sayfasına döndürüyor
   }
 }

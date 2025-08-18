@@ -1,80 +1,78 @@
-<div class="page">
-  <header class="topbar">
-    <h1>Açık Bankacılık</h1>
-    <div class="right">
-      <button class="add" (click)="openAddBank()">+ Banka Ekle</button>
-    </div>
-  </header>
+<header class="topbar">
+  <h1>Open Banking</h1>
+  <div class="right">
+    <button class="add" (click)="openAddBank()">+ Banka Ekle</button>
+    <button class="danger" (click)="logout()">Güvenli Çıkış</button>
+  </div>
+</header>
 
-  <section class="banks">
-    <div
-      class="bank-card"
-      *ngFor="let b of banks()"
-      [class.active]="b.code === selectedBank()"
-      (click)="onSelectBank(b.code)"
-    >
-      <div class="logo" [class.vakif]="b.code==='vakif'" [class.mybank]="b.code==='mybank'"></div>
-      <div class="meta">
-        <div class="name">{{ b.name }}</div>
-        <div class="sub">{{ b.connected ? 'Bağlı' : 'Bağlı değil' }}</div>
-      </div>
-      <div class="balance">{{ b.balanceTRY | number:'1.0-2' }} <span>TRY</span></div>
-    </div>
-  </section>
-
-  <nav class="tabs">
-    <button class="tab active">Hesaplarım</button>
-    <button class="tab" disabled>Kartlar</button>
-    <button class="tab" disabled>İstatistikler</button>
-  </nav>
-
-  <section class="content">
-    <div class="accounts">
-      <div class="account" *ngFor="let a of accounts()">
-        <div class="row1">
-          <div class="iban">{{ a.ibanMasked }}</div>
-          <div class="amount">{{ a.balance | number:'1.2-2' }} <span>{{ a.currency }}</span></div>
-        </div>
-        <div class="row2">
-          <div class="name">{{ a.name }}</div>
-          <button class="ghost">Transactions</button>
-        </div>
-      </div>
-
-      <div *ngIf="accounts().length === 0" class="empty">Bu bankada görüntülenecek hesap yok.</div>
+<!-- Banka Kartları -->
+<div class="banks">
+  <div
+    class="bank-card"
+    *ngFor="let b of banks()"
+    [class.active]="selectedBank() === b.code"
+    role="button"
+    tabindex="0"
+    (click)="selectBank(b.code)"
+    (keyup.enter)="selectBank(b.code)"
+  >
+    <div class="row">
+      <div class="logo">{{ b.name }}</div>
+      <div class="mini">Connected</div>
     </div>
 
-    <aside class="sidebar">
-      <h3>Son İşlemler</h3>
-      <ul class="tx">
-        <li *ngFor="let t of recent()">
-          <div class="left">
-            <div class="desc">{{ t.description }}</div>
-            <div class="date">{{ t.date | date:'d MMM' }}</div>
-          </div>
-          <div class="amt" [class.minus]="t.amount<0" [class.plus]="t.amount>0">
-            {{ t.amount | number:'1.2-2' }} <span>{{ t.currency }}</span>
-          </div>
-        </li>
-      </ul>
-      <div *ngIf="recent().length===0" class="empty">İşlem bulunamadı.</div>
-    </aside>
-  </section>
-
-  <!-- Add Bank Modal -->
-  <div class="modal-backdrop" *ngIf="showAddModal()" (click)="closeAddBank()"></div>
-  <div class="modal" *ngIf="showAddModal()">
-    <h3>Banka Ekle</h3>
-    <label>
-      Banka
-      <select [(ngModel)]="addBankCode">
-        <option value="vakif">VakıfBank</option>
-        <option value="mybank">MyBank</option>
-      </select>
-    </label>
-    <div class="modal-actions">
-      <button class="ghost" (click)="closeAddBank()">Vazgeç</button>
-      <button class="add" (click)="confirmAddBank()">Ekle</button>
+    <div class="balance" *ngIf="b.balanceTRY !== undefined">
+      {{ b.balanceTRY | number:'1.2-2' }} TRY
     </div>
   </div>
 </div>
+
+<!-- Detay Paneli -->
+<section *ngIf="selectedBank() as code" class="bank-detail">
+  <div class="panel-header">
+    <h2>{{ selectedBankName() }}</h2>
+    <div class="spacer"></div>
+    <button class="danger" (click)="logout()">Güvenli Çıkış</button>
+  </div>
+
+  <div class="grid">
+    <!-- Hesaplar -->
+    <div class="card">
+      <h3>Hesaplarım</h3>
+
+      <div class="acc" *ngFor="let a of accounts()">
+        <div class="acc-left">
+          <div class="name">{{ a.name }}</div>
+          <div class="iban">{{ a.ibanMasked }}</div>
+        </div>
+        <div class="acc-right">
+          <div class="bal">{{ a.balance | number:'1.2-2' }} {{ a.currency }}</div>
+          <div class="actions">
+            <button class="ghost">View</button>
+            <button class="ghost">Transactions</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty" *ngIf="accounts().length === 0">Hesap bulunamadı.</div>
+    </div>
+
+    <!-- Son İşlemler -->
+    <div class="card">
+      <h3>Son İşlemler</h3>
+
+      <div class="tx" *ngFor="let t of recent()">
+        <div class="left">
+          <div class="desc">{{ t.description }}</div>
+          <div class="date">{{ t.date | date:'short' }}</div>
+        </div>
+        <div class="amt" [class.minus]="t.amount < 0" [class.plus]="t.amount >= 0">
+          {{ t.amount | number:'1.2-2' }} {{ t.currency }}
+        </div>
+      </div>
+
+      <div class="empty" *ngIf="recent().length === 0">Gösterilecek işlem yok.</div>
+    </div>
+  </div>
+</section>
