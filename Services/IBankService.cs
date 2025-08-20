@@ -41,5 +41,6 @@ namespace Staj_Proje_1.Services
             string currency,
             string? description,
             CancellationToken ct = default);
+
     }
 }

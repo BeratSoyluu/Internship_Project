@@ -5,10 +5,12 @@ namespace Staj_Proje_1.Models
 {
     public enum TransferStatus
     {
-        Pending = 0,
-        Sent = 1,
-        Failed = 2
+        Pending,     // beklemede
+        Completed,   // tamamlandı
+        Failed       // başarısız
     }
+
+
 
     public class MyBankTransfer
     {

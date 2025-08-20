@@ -68,7 +68,6 @@ namespace Staj_Proje_1.Controllers
         }
 
         // ================== CREATE (GERÇEK GÖNDERİM + BAKİYE) ==================
-        // Body sadece: { "toIban": "...", "toName": "...", "amount": 100.50 }
         [HttpPost]
         [ProducesResponseType(typeof(TransferDto), StatusCodes.Status201Created)]
         public async Task<IActionResult> Create([FromBody] TransferCreateDto dto, CancellationToken ct)
@@ -83,7 +82,6 @@ namespace Staj_Proje_1.Controllers
             if (!IsValidIban(iban))
                 return BadRequest(new { message = "Geçersiz IBAN." });
 
-            // (Opsiyonel) – sistem içi bakiye yeterlilik kontrolü
             ApplicationUser? sender = null;
             if (!string.IsNullOrEmpty(from.OwnerUserId))
             {
@@ -92,14 +90,13 @@ namespace Staj_Proje_1.Controllers
                     return BadRequest(new { message = "Yetersiz bakiye." });
             }
 
-            // 1) Transfer kaydı (Pending)
             var entity = new MyBankTransfer
             {
                 FromAccountId = from.Id,
                 ToIban        = iban,
                 ToName        = dto.ToName.Trim(),
                 Amount        = dto.Amount,
-                Currency      = "TRY", // sade: TRY sabit
+                Currency      = "TRY",
                 Description   = null,
                 Status        = TransferStatus.Pending,
                 RequestedAt   = DateTime.UtcNow
@@ -107,7 +104,6 @@ namespace Staj_Proje_1.Controllers
             _db.MyBankTransfers.Add(entity);
             await _db.SaveChangesAsync(ct);
 
-            // 2) Bankaya gerçek çağrı + bakiyeleri güncelle (transaction)
             using var tx = await _db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -118,26 +114,24 @@ namespace Staj_Proje_1.Controllers
                     iban,
                     dto.ToName.Trim(),
                     dto.Amount,
-                    "TRY",       // sade: TRY
-                    null,        // açıklama yok
+                    "TRY",
+                    null,
                     ct);
 
                 if (res.Success)
                 {
-                    entity.Status        = TransferStatus.Sent;
+                    entity.Status        = TransferStatus.Completed;
                     entity.BankReference = string.IsNullOrWhiteSpace(res.Reference)
                         ? "RES-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant()
                         : res.Reference;
                     entity.CompletedAt   = DateTime.UtcNow;
 
-                    // Gönderen bakiyesini düş
                     if (sender != null)
                     {
                         sender.Bakiye -= entity.Amount;
                         _db.Users.Update(sender);
                     }
 
-                    // Alıcı sistemde kayıtlı hesap ise ekle
                     var recvAcc = await _db.MyBankAccounts
                         .FirstOrDefaultAsync(a => a.Iban == entity.ToIban, ct);
                     if (recvAcc?.OwnerUserId != null)
@@ -216,8 +210,7 @@ namespace Staj_Proje_1.Controllers
             return Ok(res);
         }
 
-        // ================== HESABA GÖRE LİSTE (sayfalı) ==================
-        // GET /api/mybank/transfers/by-account/5?page=1&pageSize=10
+        // ================== HESABA GÖRE LİSTE ==================
         [HttpGet("by-account/{accountId:int}")]
         public async Task<IActionResult> ListByAccount(
             int accountId,
@@ -255,7 +248,7 @@ namespace Staj_Proje_1.Controllers
             return Ok(new { total, page, pageSize, items });
         }
 
-        // ================== TEKRAR GÖNDER (GERÇEK GÖNDERİM + BAKİYE) ==================
+        // ================== TEKRAR GÖNDER ==================
         [HttpPost("{id:long}/send")]
         public async Task<IActionResult> Send(long id, CancellationToken ct)
         {
@@ -264,13 +257,12 @@ namespace Staj_Proje_1.Controllers
                 .FirstOrDefaultAsync(x => x.Id == id, ct);
             if (t is null) return NotFound();
 
-            if (t.Status == TransferStatus.Sent)
+            if (t.Status == TransferStatus.Completed)
                 return BadRequest(new { message = "Transfer zaten gönderilmiş." });
 
             using var tx = await _db.Database.BeginTransactionAsync(ct);
             try
             {
-                // Yetersiz bakiye kontrolü (varsa)
                 ApplicationUser? sender = null;
                 if (!string.IsNullOrEmpty(t.FromAccount?.OwnerUserId))
                 {
@@ -292,7 +284,7 @@ namespace Staj_Proje_1.Controllers
 
                 if (res.Success)
                 {
-                    t.Status        = TransferStatus.Sent;
+                    t.Status        = TransferStatus.Completed;
                     t.BankReference = string.IsNullOrWhiteSpace(res.Reference)
                         ? t.BankReference ?? "RES-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant()
                         : res.Reference;

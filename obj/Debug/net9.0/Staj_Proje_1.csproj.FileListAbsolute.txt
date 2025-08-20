@@ -7,6 +7,7 @@ C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\bank-frontend\tsconfig.app.json
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\bank-frontend\tsconfig.json
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\bank-frontend\tsconfig.spec.json
+C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\package.json
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\Staj_Proje_1.staticwebassets.endpoints.json
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\Staj_Proje_1.exe
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\Staj_Proje_1.deps.json
@@ -151,4 +152,3 @@ C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\obj\Debug\net9.0\Staj_Proje_1.pdb
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\obj\Debug\net9.0\Staj_Proje_1.genruntimeconfig.cache
 C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\obj\Debug\net9.0\ref\Staj_Proje_1.dll
-C:\Users\Berat Soylu\OneDrive - trakya.edu.tr\Masaüstü\Staj_Proje_1\Internship_Project\bin\Debug\net9.0\package.json

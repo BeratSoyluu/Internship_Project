@@ -4,11 +4,12 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using Staj_Proje_1.Models;
-using Staj_Proje_1.Models.Dtos; // TransactionsResponse, BankTransferResponse
-using Staj_Proje_1.Utils;
+using Microsoft.EntityFrameworkCore;
 
+using Staj_Proje_1.Data;            // ApplicationDbContext
+using Staj_Proje_1.Models;          // MyBankAccount, MyBankTransfer
+using Staj_Proje_1.Models.Dtos;     // AccountListResponse, AccountDetailResponse, TransactionsResponse, BankTransferResponse
+using Staj_Proje_1.Utils;           // DecimalFlexibleConverter
 
 namespace Staj_Proje_1.Services;
 
@@ -16,6 +17,8 @@ public class BankService : IBankService
 {
     private readonly HttpClient _http;
     private readonly IConfiguration _cfg;
+    private readonly ApplicationDbContext _db;
+    private readonly ILogger<BankService> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -27,10 +30,12 @@ public class BankService : IBankService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public BankService(HttpClient http, IConfiguration cfg)
+    public BankService(HttpClient http, IConfiguration cfg, ApplicationDbContext db, ILogger<BankService> logger)
     {
-        _http  = http;
-        _cfg   = cfg;
+        _http   = http;
+        _cfg    = cfg;
+        _db     = db;
+        _logger = logger;
     }
 
     // ------------------- Token -------------------
@@ -45,15 +50,8 @@ public class BankService : IBankService
         var consentId    = _cfg["VakifBank:ConsentId"]    ?? throw new InvalidOperationException("ConsentId yok");
         var resourceEnv  = _cfg["VakifBank:ResourceEnvironment"] ?? "sandbox";
 
-        Console.WriteLine("=== TOKEN REQUEST INFO ===");
-        Console.WriteLine($"TokenUrl: {tokenUrl}");
-        Console.WriteLine($"ClientId: {clientId}");
-        Console.WriteLine($"ClientSecret: {clientSecret}");
-        Console.WriteLine($"GrantType: b2b_credentials");
-        Console.WriteLine($"Scope: {scope}");
-        Console.WriteLine($"ConsentId: {consentId}");
-        Console.WriteLine($"ResourceEnvironment: {resourceEnv}");
-        Console.WriteLine("==========================");
+        _logger.LogInformation("=== TOKEN REQUEST === Url={Url} ClientId={Id} GrantType=b2b_credentials Scope={Scope} ConsentId={Consent} Resource={Res}",
+            tokenUrl, clientId, scope, consentId, resourceEnv);
 
         var form = new Dictionary<string, string>
         {
@@ -112,7 +110,7 @@ public class BankService : IBankService
         using var res  = await _http.SendAsync(req, ct);
         var       body = await res.Content.ReadAsStringAsync(ct);
 
-        Console.WriteLine($"[DEBUG] POST {full} -> {(int)res.StatusCode}");
+        _logger.LogInformation("POST {Url} -> {Code}", full, (int)res.StatusCode);
 
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"accountList HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
@@ -145,7 +143,8 @@ public class BankService : IBankService
         using var res  = await _http.SendAsync(req, ct);
         var       body = await res.Content.ReadAsStringAsync(ct);
 
-        Console.WriteLine($"[DEBUG] POST {full} -> {(int)res.StatusCode}");
+        _logger.LogInformation("POST {Url} -> {Code}", full, (int)res.StatusCode);
+
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"accountDetail HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
 
@@ -167,7 +166,7 @@ public class BankService : IBankService
     }
 
     // ------------------- Hesap Hareketleri (tarih aralığıyla) -------------------
-        public async Task<TransactionsResponse> GetAccountTransactionsAsync(
+    public async Task<TransactionsResponse> GetAccountTransactionsAsync(
         string accessToken,
         string AccountNumber,
         string StartDate,   // "dd-MM-yyyy"
@@ -175,9 +174,9 @@ public class BankService : IBankService
         CancellationToken ct = default)
     {
         PrepareDefaultHeaders(accessToken);
-        // İsteğe bağlı: Accept'i garanti altına al
+
         if (!_http.DefaultRequestHeaders.Accept.Any(h => h.MediaType == "application/json"))
-            _http.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         static string ToApiDateTime(string d, bool endOfDay)
         {
@@ -208,15 +207,12 @@ public class BankService : IBankService
 
         var payload = new
         {
-            AccountNumber = AccountNumber, // PascalCase
+            AccountNumber = AccountNumber,
             StartDate     = apiStart,
             EndDate       = apiEnd
         };
 
-        Console.WriteLine("[DEBUG] URL: " + full);
-        Console.WriteLine("[DEBUG] Payload: " + JsonSerializer.Serialize(payload));
-        Console.WriteLine("[DEBUG] Headers: " +
-            string.Join("; ", _http.DefaultRequestHeaders.Select(h => $"{h.Key}={string.Join(",", h.Value)}")));
+        _logger.LogInformation("POST {Url} Payload={Payload}", full, JsonSerializer.Serialize(payload));
 
         using var req = new HttpRequestMessage(HttpMethod.Post, full)
         {
@@ -231,23 +227,69 @@ public class BankService : IBankService
         using var res  = await _http.SendAsync(req, ct);
         var body = await res.Content.ReadAsStringAsync(ct);
 
-        Console.WriteLine($"[DEBUG] POST {full} -> {(int)res.StatusCode}");
-        Console.WriteLine("[DEBUG] RAW RESPONSE: " + body);
+        _logger.LogInformation("POST {Url} -> {Code}; BodyLen={Len}", full, (int)res.StatusCode, body?.Length ?? 0);
 
-        // Hata kontrolü (body'yi loglayıp anlaşılır exception)
         if (!res.IsSuccessStatusCode)
             throw new ApplicationException($"accountTransactions HTTP {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
 
-        // Amount için esnek converter ekle
         var opts = new JsonSerializerOptions(JsonOpts);
         opts.Converters.Add(new DecimalFlexibleConverter());
 
         return JsonSerializer.Deserialize<TransactionsResponse>(body, opts)
-            ?? new TransactionsResponse();
+               ?? new TransactionsResponse();
     }
 
+    // ======================================================================
+    //                   MYBANK: TEK ADIMDA TAMAMLANAN TRANSFER
+    // ======================================================================
 
-    // ------------------- Para Transferi (gerçek çağrı) -------------------
+    // Basit TR IBAN doğrulayıcı
+    private static bool IsValidTrIban(string? iban)
+    {
+        if (string.IsNullOrWhiteSpace(iban)) return false;
+        iban = iban.Replace(" ", "").ToUpperInvariant();
+        if (!iban.StartsWith("TR") || iban.Length != 26) return false;
+        for (int i = 2; i < iban.Length; i++) if (!char.IsDigit(iban[i])) return false;
+        return true;
+    }
+
+    private async Task<MyBankTransfer> CreateAndCompleteMyBankTransferAsync(
+        string accountNumber, string toIban, decimal amount, string? description, CancellationToken ct)
+    {
+        var acc = await _db.MyBankAccounts
+            .SingleOrDefaultAsync(a => a.AccountNumber == accountNumber, ct)
+            ?? throw new InvalidOperationException("Hesap bulunamadı.");
+
+        if (amount <= 0) throw new InvalidOperationException("Tutar pozitif olmalı.");
+        if (!IsValidTrIban(toIban)) throw new InvalidOperationException("Geçersiz IBAN.");
+        if (acc.Balance < amount) throw new InvalidOperationException("Yetersiz bakiye.");
+
+        var now = DateTime.UtcNow;
+
+        var tr = new MyBankTransfer
+        {
+            // FK alan adın her ne ise hiç kullanmadan navigasyonla set edelim:
+            FromAccountId = acc.Id,
+            FromAccount   = acc,
+            ToIban        = toIban,
+            Amount        = amount,
+            Currency      = "TRY",
+            Status        = TransferStatus.Completed,
+            RequestedAt   = now,
+            CompletedAt   = now,
+            // Description/Note alanın varsa:
+            // Description   = description
+        };
+
+        acc.Balance -= amount;
+        _db.MyBankTransfers.Add(tr);
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("MyBank transfer completed. AccNumber={Acc} Amount={Amount} To={Iban}", accountNumber, amount, toIban);
+        return tr;
+    }
+
+    // IBankService imzası (BankTransferResponse döndürür)
     public async Task<BankTransferResponse> SendTransferAsync(
         string accessToken,
         string fromAccountNumber,
@@ -258,89 +300,45 @@ public class BankService : IBankService
         string? description,
         CancellationToken ct = default)
     {
-        PrepareDefaultHeaders(accessToken);
+        // MyBank iç transfer — accessToken burada kullanılmıyor
+        var acc = await _db.MyBankAccounts
+            .SingleOrDefaultAsync(a => a.AccountNumber == fromAccountNumber, ct)
+            ?? throw new InvalidOperationException("Hesap bulunamadı.");
 
-        var baseUrl = _cfg["VakifBank:BaseUrl"]
-            ?? throw new InvalidOperationException("VakifBank:BaseUrl yok");
-        var path = _cfg["VakifBank:MoneyTransferPath"] ?? "/moneyTransfer";
-        var full = new Uri(new Uri(baseUrl, UriKind.Absolute), path);
+        if (amount <= 0) throw new InvalidOperationException("Tutar pozitif olmalı.");
+        if (acc.Balance < amount) throw new InvalidOperationException("Yetersiz bakiye.");
+        if (!IsValidTrIban(toIban)) throw new InvalidOperationException("Geçersiz IBAN.");
 
-        var payload = new
+        var now = DateTime.UtcNow;
+
+        var tr = new MyBankTransfer
         {
-            // Gönderen
-            fromAccountNumber = fromAccountNumber,
-            fromAccountNo     = fromAccountNumber?.TrimStart('0'),
-
-            // Alıcı
-            toIban        = toIban,
-            receiverIban  = toIban,
-            toName        = toName,
-            receiverName  = toName,
-
-            // Tutar
-            amount   = amount,
-            currency = (currency ?? "TRY").ToUpperInvariant(),
-
-            description = description
+            FromAccountId = acc.Id,
+            FromAccount   = acc,
+            ToIban        = toIban,
+            ToName        = toName ?? string.Empty,
+            Amount        = amount,
+            Currency      = string.IsNullOrWhiteSpace(currency) ? "TRY" : currency,
+            Description   = description,
+            Status = TransferStatus.Completed,
+            RequestedAt   = now,
+            CompletedAt   = now
         };
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, full)
+        acc.Balance -= amount;
+        _db.MyBankTransfers.Add(tr);
+        await _db.SaveChangesAsync(ct);
+
+        return new BankTransferResponse
         {
-            Content = new StringContent(JsonSerializer.Serialize(payload, Camel), Encoding.UTF8, "application/json")
+            Success           = true,
+            Reference         = tr.Id.ToString(),
+            StatusCode        = "200",
+            StatusDescription = "Transfer completed",
+            RawBody           = JsonSerializer.Serialize(tr)
         };
-
-        req.Headers.Add("x-ibm-client-id", _cfg["VakifBank:ClientId"]);
-        req.Headers.Add("x-consent-id", _cfg["VakifBank:ConsentId"]);
-        req.Headers.Add("x-resource-indicator", _cfg["VakifBank:ResourceEnvironment"]);
-        req.Headers.Add("x-fapi-interaction-id", Guid.NewGuid().ToString());
-
-        Console.WriteLine("[TRANSFER][REQ] " + full);
-        Console.WriteLine("[TRANSFER][PAYLOAD] " + JsonSerializer.Serialize(payload, Camel));
-
-        using var res = await _http.SendAsync(req, ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-
-        Console.WriteLine($"[TRANSFER][RES] {(int)res.StatusCode}");
-        Console.WriteLine("[TRANSFER][BODY] " + body);
-
-        var result = new BankTransferResponse { RawBody = body };
-
-        try
-        {
-            using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("Header", out var hdr))
-            {
-                if (hdr.TryGetProperty("StatusCode", out var sc)) result.StatusCode = sc.GetString();
-                if (hdr.TryGetProperty("StatusDescription", out var sd)) result.StatusDescription = sd.GetString();
-            }
-
-            // Olası referans alan adları
-            foreach (var key in new[] { "reference", "referenceNo", "referenceNumber", "transactionReference", "transferId", "orderId" })
-            {
-                if (root.TryGetProperty(key, out var v)) { result.Reference = v.GetString(); break; }
-                if (root.TryGetProperty("Body", out var b) && b.TryGetProperty(key, out var vb)) { result.Reference = vb.GetString(); break; }
-            }
-
-            result.Success = res.IsSuccessStatusCode &&
-                             (result.Reference != null ||
-                              string.IsNullOrEmpty(result.StatusCode) ||
-                              result.StatusCode.StartsWith("ACBH0000", StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            result.Success = res.IsSuccessStatusCode;
-        }
-
-        if (!res.IsSuccessStatusCode)
-        {
-            result.StatusCode ??= ((int)res.StatusCode).ToString(CultureInfo.InvariantCulture);
-            result.StatusDescription ??= res.ReasonPhrase;
-        }
-
-        return result;
     }
+
 
     // ------------------- Helpers -------------------
     private void PrepareDefaultHeaders(string accessToken)
@@ -349,6 +347,6 @@ public class BankService : IBankService
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         _http.DefaultRequestHeaders.Accept.Clear();
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        // x-* header’ları request bazında ekleniyor (yukarıda).
+        // x-* header’lar request bazında ekleniyor.
     }
 }
