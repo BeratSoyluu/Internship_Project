@@ -19,7 +19,7 @@
   >
     <div class="row">
       <div class="logo">{{ b.name }}</div>
-      <div class="mini">Connected</div>
+      <div class="mini">{{ b.connected ? 'Connected' : 'Not Connected' }}</div>
     </div>
 
     <div class="balance" *ngIf="b.balanceTRY !== undefined">
@@ -44,7 +44,8 @@
       <div class="acc" *ngFor="let a of accounts()">
         <div class="acc-left">
           <div class="name">{{ a.name }}</div>
-          <div class="iban">{{ a.ibanMasked }}</div>
+          <!-- 👇 Sansürsüz IBAN -->
+          <div class="iban">{{ a.iban }}</div>
         </div>
         <div class="acc-right">
           <div class="bal">{{ a.balance | number:'1.2-2' }} {{ a.currency }}</div>

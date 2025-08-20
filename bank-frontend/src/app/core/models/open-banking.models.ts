@@ -11,10 +11,11 @@ export interface BankDto {
 export interface AccountDto {
   id: string;
   bankCode: BankCode;
-  name: string;        // "Vadesiz Hesap" vb.
-  ibanMasked: string;  // "TR12 **** **** ****"
+  name: string;
+  iban: string;             // ✅ maskesiz IBAN (backend artık bunu döndürüyor)
+  ibanMasked?: string;      // ✅ opsiyonel, gerekirse tutulur
   balance: number;
-  currency: 'TRY' | 'USD' | 'EUR';
+  currency: string;
 }
 
 export interface TransactionDto {

@@ -31,20 +31,55 @@ export class DashboardComponent implements OnInit {
     this.loadBanks();
   }
 
-  loadBanks() {
-    this.api.getLinkedBanks().subscribe({
-      next: (list) => this.banks.set(list),
-    });
-  }
-
-  selectBank(code: BankCode) {
+  private loadForBank(code: BankCode) {
     if (this.selectedBank() === code) return;
+
     this.selectedBank.set(code);
     this.accounts.set([]);
     this.recent.set([]);
 
-    this.api.getAccounts(code).subscribe(a => this.accounts.set(a));
-    this.api.getRecentTransactions(code, 5).subscribe(tx => this.recent.set(tx));
+    // MyBank için tek "Vadesiz" hesabı göster
+    const anyApiAsAny = this.api as any;
+    if (code === 'mybank' && typeof anyApiAsAny.getMyBankAccount === 'function') {
+      anyApiAsAny.getMyBankAccount().subscribe({
+        next: (acc: AccountDto) => this.accounts.set(acc ? [acc] : []),
+        error: () => this.fallbackAccounts(code),
+      });
+    } else {
+      this.fallbackAccounts(code);
+    }
+
+    this.api.getRecentTransactions(code, 5).subscribe({
+      next: tx => this.recent.set(tx ?? []),
+      error: () => this.recent.set([]),
+    });
+  }
+
+  private fallbackAccounts(code: BankCode) {
+    this.api.getAccounts(code).subscribe({
+      next: a => this.accounts.set(a ?? []),
+      error: () => this.accounts.set([]),
+    });
+  }
+
+  loadBanks() {
+    this.api.getLinkedBanks().subscribe({
+      next: (list) => {
+        this.banks.set(list);
+
+        // Önce mybank (bağlıysa) seç, yoksa ilk bağlı banka
+        const preferred =
+          list.find(b => b.code === 'mybank' && b.connected)?.code
+          ?? list.find(b => b.connected)?.code
+          ?? null;
+
+        if (preferred) this.loadForBank(preferred);
+      },
+    });
+  }
+
+  selectBank(code: BankCode) {
+    this.loadForBank(code);
   }
 
   openAddBank() {

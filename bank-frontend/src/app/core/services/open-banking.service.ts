@@ -14,11 +14,20 @@ export class OpenBankingService {
   private http = inject(HttpClient);
   private readonly base = '/api/open-banking';
 
+  // -------- Banks --------
   getLinkedBanks(): Observable<BankDto[]> {
-    return this.http.get<any[]>(`${this.base}/linked-banks`).pipe(
-      map(list => list.map(this.normalizeBank))
-    );
-  }
+  return this.http.get<any[]>(`${this.base}/linked-banks`).pipe(
+    map(list => list.map(raw => ({
+      id: String(raw.id ?? raw.Id),
+      name: String(raw.name ?? raw.Name),
+      code: (raw.code ?? raw.Code) as BankCode,
+      balanceTRY: Number(
+        raw.balanceTRY ?? raw.balanceTry ?? raw.BalanceTRY ?? raw.balance_trY ?? 0
+      ),
+      connected: Boolean(raw.connected ?? raw.isConnected ?? raw.linked ?? raw.Connected ?? false),
+    })))
+  );
+}
 
   linkBank(payload: LinkBankRequest): Observable<BankDto> {
     return this.http.post<any>(`${this.base}/link`, payload).pipe(
@@ -31,11 +40,33 @@ export class OpenBankingService {
     return this.linkBank({ bankCode: bank });
   }
 
+  // -------- Accounts --------
   getAccounts(bank: BankCode): Observable<AccountDto[]> {
-    const params = new HttpParams().set('bank', bank);
-    return this.http.get<AccountDto[]>(`${this.base}/accounts`, { params });
+  const params = new HttpParams().set('bank', bank);
+  return this.http.get<any[]>(`${this.base}/accounts`, { params }).pipe(
+    map(list => list.map(raw => {
+      const iban = String(raw.iban ?? raw.ibanMasked ?? raw.Iban ?? raw.IbanMasked ?? '');
+      return {
+        id: String(raw.id ?? raw.Id),
+        bankCode: (raw.bankCode ?? raw.bank ?? raw.BankCode ?? raw.Bank) as BankCode,
+        name: String(raw.name ?? raw.Name ?? 'Vadesiz Hesap'),
+        iban,
+        ibanMasked: String(raw.ibanMasked ?? raw.IbanMasked ?? iban),
+        balance: Number(raw.balance ?? raw.Balance ?? 0),            // 👈 kritik
+        currency: String(raw.currency ?? raw.Currency ?? 'TRY'),     // 👈 kritik
+      } as AccountDto;
+    }))
+  );
+}
+
+  // Alternatif: OpenBanking /accounts listesinden ilk elemanı tek hesap gibi al
+  getSingleMyBankFromOpenBanking(): Observable<AccountDto | null> {
+    return this.getAccounts('mybank').pipe(
+      map(list => (list?.length ? list[0] : null))
+    );
   }
 
+  // -------- Transactions --------
   getRecentTransactions(bank: BankCode, take = 5): Observable<TransactionDto[]> {
     const params = new HttpParams()
       .set('bank', bank)

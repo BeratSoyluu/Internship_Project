@@ -5,10 +5,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;               // <-- EF Core
 using Staj_Proje_1.Models;
 using Staj_Proje_1.Services;
 using Staj_Proje_1.Models.Dtos;
-using Staj_Proje_1.Data; // <-- ApplicationDbContext
+using Staj_Proje_1.Data; // ApplicationDbContext
 
 namespace Staj_Proje_1.Controllers
 {
@@ -20,20 +21,20 @@ namespace Staj_Proje_1.Controllers
         private readonly IConfiguration _configuration;
         private readonly IBankService _myBankService;
         private readonly ILogger<MyBankController> _logger;
-        private readonly ApplicationDbContext _db; // <-- eklendi
+        private readonly ApplicationDbContext _db;
 
         public MyBankController(
             UserManager<ApplicationUser> userManager,
             IConfiguration configuration,
             IBankService myBankService,
             ILogger<MyBankController> logger,
-            ApplicationDbContext db) // <-- eklendi
+            ApplicationDbContext db)
         {
             _userManager = userManager;
             _configuration = configuration;
             _myBankService = myBankService;
             _logger = logger;
-            _db = db; // <-- eklendi
+            _db = db;
         }
 
         // POST: /api/mybank/register
@@ -56,9 +57,9 @@ namespace Staj_Proje_1.Controllers
 
             var user = new ApplicationUser
             {
-                UserName    = model.Email,
-                Email       = model.Email,
-                PhoneNumber = model.Phone,
+                UserName     = model.Email,
+                Email        = model.Email,
+                PhoneNumber  = model.Phone,
                 KullaniciAdi = displayName,
                 Bakiye       = initialBalance
             };
@@ -71,16 +72,17 @@ namespace Staj_Proje_1.Controllers
                 return BadRequest(new { message = "Kayıt başarısız.", errors });
             }
 
-            // ✅ Varsayılan hesap + IBAN oluştur
+            // Varsayılan hesap + IBAN oluştur
             var account = new MyBankAccount
             {
-                OwnerUserId   = user.Id,                         // FK (modelinde olmalı)
-                Iban          = await GenerateUniqueIbanAsync(), // benzersiz IBAN
+                OwnerUserId   = user.Id,
+                Iban          = await GenerateUniqueIbanAsync(),
                 AccountNumber = GenerateAccountNumber(),
                 AccountName   = $"Vadesiz - {displayName}",
                 Currency      = "TRY",
                 PhoneNumber   = model.Phone ?? "",
-                CreatedAt     = DateTime.UtcNow
+                CreatedAt     = DateTime.UtcNow,
+                Balance       = initialBalance           // ✅ BAKİYEYİ HESABA DA YAZ
             };
 
             _db.MyBankAccounts.Add(account);
@@ -89,7 +91,13 @@ namespace Staj_Proje_1.Controllers
             return Ok(new
             {
                 message = "Kayıt başarılı.",
-                account = new { account.Iban, account.AccountNumber, account.Currency }
+                account = new
+                {
+                    account.Iban,
+                    account.AccountNumber,
+                    account.Currency,
+                    account.Balance
+                }
             });
         }
 
@@ -124,7 +132,7 @@ namespace Staj_Proje_1.Controllers
             });
         }
 
-        // GET: /api/mybank/account-details
+        // GET: /api/mybank/account-details  (Bank API örnek)
         [HttpGet("account-details")]
         [Authorize]
         public async Task<IActionResult> GetAccountDetailsForLoggedUser()
@@ -151,6 +159,37 @@ namespace Staj_Proje_1.Controllers
                 _logger.LogError(ex, "HTTP error while calling Bank API");
                 return StatusCode(502, new { error = "Http error", detail = ex.Message });
             }
+        }
+
+        // GET: /api/mybank/my-account  (‼️ FRONTEND'in MyBank kartı için DB'den IBAN ve bakiye)
+        [HttpGet("my-account")]
+        [Authorize]
+        public async Task<IActionResult> GetMyAccount()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { message = "Kullanıcı kimliği okunamadı." });
+
+            var acc = await _db.MyBankAccounts
+                .AsNoTracking()
+                .Where(a => a.OwnerUserId == userId)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.AccountName,
+                    a.AccountNumber,
+                    a.Iban,          // maskesiz
+                    a.Currency,
+                    a.Balance
+                })
+                .FirstOrDefaultAsync();
+
+            if (acc is null)
+                return NotFound(new { message = "Kullanıcının MyBank hesabı bulunamadı." });
+
+            return Ok(acc);
         }
 
         // ----------------- Helpers -----------------
@@ -188,13 +227,14 @@ namespace Staj_Proje_1.Controllers
         // DEMO: benzersiz IBAN (gerçek MOD-97 değil)
         private async Task<string> GenerateUniqueIbanAsync()
         {
-            // Benzersiz olana kadar dener
-            while (true)
+            // makul deneme limiti
+            for (int i = 0; i < 1000; i++)
             {
                 var iban = GenerateTestIban();
-                var exists = await Task.FromResult(_db.MyBankAccounts.Any(a => a.Iban == iban));
+                var exists = await _db.MyBankAccounts.AnyAsync(a => a.Iban == iban);
                 if (!exists) return iban;
             }
+            throw new InvalidOperationException("Benzersiz IBAN üretilemedi.");
         }
 
         private static string GenerateTestIban()

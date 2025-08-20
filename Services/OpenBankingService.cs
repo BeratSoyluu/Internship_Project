@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Staj_Proje_1.Data;
@@ -55,36 +54,21 @@ public class OpenBankingService : IOpenBankingService
             };
         }
 
-        // === MyBank: giriş yapan kullanıcının IBAN ve bakiyesi ===
-        var acc = await _db.MyBankAccounts
+        // === MyBank: giriş yapan kullanıcının TÜM hesapları (IBAN maskesiz, bakiye DB'den) ===
+        var accounts = await _db.MyBankAccounts
             .AsNoTracking()
             .Where(a => a.OwnerUserId == userId)
-            .Select(a => new
-            {
-                a.Id,
-                a.Iban,
-                Balance  = (decimal?)a.Balance,   // nullable yakala
-                a.Currency
-            })
-            .FirstOrDefaultAsync(ct);
-
-        if (acc is null)
-            return Array.Empty<AccountDto>();
-
-        var ibanMasked = MaskIban(acc.Iban);
-
-        return new[]
-        {
-            new AccountDto(
-                acc.Id.ToString(),
+            .Select(a => new AccountDto(
+                a.Id.ToString(),
                 BankCode.mybank,
-                "Vadesiz Hesap",
-                ibanMasked,
-                acc.Balance ?? 0m,                         // << burada null'u 0'a çevir
-                string.IsNullOrWhiteSpace(acc.Currency) ? "TRY" : acc.Currency!
-            )
-        };
+                string.IsNullOrWhiteSpace(a.AccountName) ? "Vadesiz Hesap" : a.AccountName!,
+                a.Iban,                                              // ✅ maskesiz IBAN
+                a.Balance,                                           // ✅ DB'deki bakiye
+                string.IsNullOrWhiteSpace(a.Currency) ? "TRY" : a.Currency!
+            ))
+            .ToListAsync(ct);
 
+        return accounts;
     }
 
     public Task<IEnumerable<TransactionDto>> GetRecentTransactionsAsync(string userId, BankCode bank, int take = 5, CancellationToken ct = default)
@@ -99,6 +83,7 @@ public class OpenBankingService : IOpenBankingService
         return Task.FromResult(list.Take(take));
     }
 
+    // ibanı maskelemek için kullanıyoruz.
     private static string MaskIban(string? iban)
     {
         if (string.IsNullOrWhiteSpace(iban)) return "TR** **** **** **** **** **";
