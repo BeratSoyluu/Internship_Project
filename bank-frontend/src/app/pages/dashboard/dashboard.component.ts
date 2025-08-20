@@ -1,6 +1,9 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { OpenBankingService } from '../../core/services/open-banking.service';
+import {
+  OpenBankingService,
+  VakifAccountRow
+} from '../../core/services/open-banking.service';
 import { AuthService } from '../../services/auth.service';
 import { BankDto, BankCode, AccountDto, TransactionDto } from '../../core/models/open-banking.models';
 
@@ -17,14 +20,31 @@ export class DashboardComponent implements OnInit {
 
   banks = signal<BankDto[]>([]);
   selectedBank = signal<BankCode | null>(null);
+
+  // MyBank & genel hesaplar
   accounts = signal<AccountDto[]>([]);
+  // VakıfBank özel hesap listesi
+  vakifAccounts = signal<VakifAccountRow[]>([]);
+
+  // son işlemler
   recent = signal<TransactionDto[]>([]);
+
+  // ✅ seçilen banka vakıf mı?
+  vakifMi = computed(() => this.normalizeCode(this.selectedBank()) === 'vakif');
+
+  /** Banka kodunu normalize et */
+  private normalizeCode(code: any): string {
+    if (code === 0 || String(code).toLowerCase() === 'vakif') return 'vakif';
+    if (code === 1 || String(code).toLowerCase() === 'mybank') return 'mybank';
+    return String(code ?? '').toLowerCase();
+  }
 
   // seçili bankanın adı (UI için)
   selectedBankName = computed(() => {
-    const code = this.selectedBank();
-    const b = this.banks().find(x => x.code === code);
-    return b?.name ?? '';
+    const raw = this.selectedBank();
+    const norm = this.normalizeCode(raw);
+    const found = this.banks().find(b => this.normalizeCode(b.code) === norm);
+    return found?.name ?? (norm ? norm : '');
   });
 
   ngOnInit() {
@@ -33,32 +53,46 @@ export class DashboardComponent implements OnInit {
 
   private loadForBank(code: BankCode) {
     if (this.selectedBank() === code) return;
+    console.log('[dashboard] loadForBank =>', code);
 
     this.selectedBank.set(code);
     this.accounts.set([]);
+    this.vakifAccounts.set([]);
     this.recent.set([]);
 
-    // MyBank için tek "Vadesiz" hesabı göster
-    const anyApiAsAny = this.api as any;
-    if (code === 'mybank' && typeof anyApiAsAny.getMyBankAccount === 'function') {
-      anyApiAsAny.getMyBankAccount().subscribe({
-        next: (acc: AccountDto) => this.accounts.set(acc ? [acc] : []),
-        error: () => this.fallbackAccounts(code),
+    if (this.normalizeCode(code) === 'vakif') {
+      // VakıfBank: ayrı endpoint
+      this.api.getVakifAccountList().subscribe({
+        next: list => {
+          console.log('[dashboard] vakif account list size:', list?.length ?? 0);
+          this.vakifAccounts.set(list ?? []);
+        },
+        error: err => {
+          console.error('[dashboard] vakif/account-list error:', err);
+          this.vakifAccounts.set([]);
+        },
       });
     } else {
-      this.fallbackAccounts(code);
+      // MyBank ya da diğer bankalar
+      this.api.getAccounts(code).subscribe({
+        next: list => {
+          console.log('[dashboard] accounts size:', list?.length ?? 0);
+          this.accounts.set(list ?? []);
+        },
+        error: err => {
+          console.error('[dashboard] accounts error:', err);
+          this.accounts.set([]);
+        },
+      });
     }
 
+    // ortak: son işlemler
     this.api.getRecentTransactions(code, 5).subscribe({
       next: tx => this.recent.set(tx ?? []),
-      error: () => this.recent.set([]),
-    });
-  }
-
-  private fallbackAccounts(code: BankCode) {
-    this.api.getAccounts(code).subscribe({
-      next: a => this.accounts.set(a ?? []),
-      error: () => this.accounts.set([]),
+      error: err => {
+        console.error('[dashboard] recent-transactions error:', err);
+        this.recent.set([]);
+      },
     });
   }
 
@@ -66,15 +100,17 @@ export class DashboardComponent implements OnInit {
     this.api.getLinkedBanks().subscribe({
       next: (list) => {
         this.banks.set(list);
+        console.log('[dashboard] linked banks:', list);
 
-        // Önce mybank (bağlıysa) seç, yoksa ilk bağlı banka
         const preferred =
-          list.find(b => b.code === 'mybank' && b.connected)?.code
+          list.find(b => this.normalizeCode(b.code) === 'mybank' && b.connected)?.code
+          ?? list.find(b => this.normalizeCode(b.code) === 'vakif' && b.connected)?.code
           ?? list.find(b => b.connected)?.code
           ?? null;
 
-        if (preferred) this.loadForBank(preferred);
+        if (preferred != null) this.loadForBank(preferred);
       },
+      error: err => console.error('[dashboard] getLinkedBanks error:', err),
     });
   }
 
@@ -83,16 +119,18 @@ export class DashboardComponent implements OnInit {
   }
 
   openAddBank() {
-    // Basit akış: prompt ile banka seçelim; sonra backend’e gönderelim.
     const bank = (prompt('Hangi banka eklensin? (vakif / mybank)') || '').toLowerCase().trim();
     if (bank !== 'vakif' && bank !== 'mybank') return;
 
     this.api.linkNewBank(bank as BankCode).subscribe({
-      next: () => this.loadBanks()
+      next: () => this.loadBanks(),
+      error: err => console.error('[dashboard] linkNewBank error:', err),
     });
   }
 
   logout() {
-    this.auth.logout(); // seni login sayfasına döndürüyor
+    this.auth.logout();
   }
+
+  trackByIndex(i: number) { return i; }
 }

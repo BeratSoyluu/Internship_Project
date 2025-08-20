@@ -1,33 +1,40 @@
 :host { display:block; padding:16px; }
 
+/* ÜST BAR */
 .topbar{
   display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
 }
 .topbar .right{ display:flex; gap:8px; }
 button.add,button.danger{
-  padding:8px 12px; border:0; border-radius:10px; cursor:pointer;
+  padding:8px 12px; border:0; border-radius:10px; cursor:pointer; font-weight:500;
 }
 button.add{ background:#f3f6ff; }
 button.danger{ background:#ffecec; }
 
+/* BANKA KARTLARI */
 .banks{
   display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:12px;
 }
 .bank-card{
   background:#fff; border-radius:16px; padding:16px;
-  box-shadow:0 2px 10px rgba(0,0,0,.06); cursor:pointer; outline:none;
+  box-shadow:0 2px 10px rgba(0,0,0,.06); cursor:pointer; outline:none; transition:0.2s;
 }
+.bank-card:hover{ transform:translateY(-2px); }
 .bank-card.active{ box-shadow:0 0 0 2px #ff8c00 inset; }
 .bank-card .row{ display:flex; justify-content:space-between; align-items:center; }
 .bank-card .mini{ color:#777; font-size:12px; }
 .balance{ margin-top:10px; font-weight:600; }
 
+/* DETAY PANELİ */
 .bank-detail{ margin-top:18px; }
-.panel-header{ display:flex; align-items:center; gap:12px; }
+.panel-header{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
 .panel-header .spacer{ flex:1; }
 
+/* GRID / KARTLAR */
 .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .card{ background:#fff; border-radius:14px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+
+/* HESAPLAR */
 .acc{
   display:flex; align-items:center; justify-content:space-between;
   padding:10px 0; border-bottom:1px solid #eee;
@@ -36,14 +43,35 @@ button.danger{ background:#ffecec; }
 .acc-left .iban{ font-size:12px; color:#666; margin-top:4px; }
 .acc-right{ text-align:right; }
 .actions{ margin-top:6px; }
-button.ghost{ padding:6px 10px; border:0; background:#f3f3f4; border-radius:10px; margin-left:6px; }
+button.ghost{
+  padding:6px 10px; border:0; background:#f3f3f4; border-radius:10px; margin-left:6px; cursor:pointer;
+}
 
+/* İŞLEMLER */
 .tx{ display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #eee; }
 .tx:last-child{ border-bottom:0; }
 .amt.minus{ color:#c21; }
 .amt.plus{ color:#1a7; }
 .empty{ color:#777; font-size:13px; padding:6px 0; }
 
+/* VAKIFBANK TABLOSU */
+.vakif-table-wrapper { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); overflow:hidden; }
+.vakif-table { width:100%; border-collapse:separate; border-spacing:0; font-size:14px; }
+.vakif-table thead tr { background:#f7f7f7; }
+.vakif-table th, .vakif-table td { padding:12px 14px; border-bottom:1px solid #eee; text-align:left; }
+.vakif-table th { font-weight:600; color:#444; }
+.vakif-table .iban { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:13px; }
+.vakif-table .actions { white-space:nowrap; text-align:right; }
+button.pill{
+  padding:6px 12px; border:none; border-radius:999px; font-weight:500; cursor:pointer;
+  background:#ff9f2f; color:#222; margin-left:6px; transition:0.2s;
+}
+button.pill:hover{ opacity:0.9; }
+button.pill.warn{ background:#ff7f2f; }
+.vakif-table .empty{ text-align:center; color:#777; padding:18px; }
+
+/* RESPONSIVE */
 @media (max-width: 900px){
   .grid{ grid-template-columns: 1fr; }
+  .vakif-table th, .vakif-table td{ font-size:12px; padding:8px 10px; }
 }

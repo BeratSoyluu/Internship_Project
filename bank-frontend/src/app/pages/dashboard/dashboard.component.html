@@ -1,79 +1,49 @@
-<header class="topbar">
-  <h1>Open Banking</h1>
-  <div class="right">
-    <button class="add" (click)="openAddBank()">+ Banka Ekle</button>
-    <button class="danger" (click)="logout()">Güvenli Çıkış</button>
-  </div>
-</header>
-
-<!-- Banka Kartları -->
+<!-- Banka kartları -->
 <div class="banks">
   <div
     class="bank-card"
-    *ngFor="let b of banks()"
+    *ngFor="let b of banks(); trackBy: trackByIndex"
     [class.active]="selectedBank() === b.code"
-    role="button"
-    tabindex="0"
+    role="button" tabindex="0"
     (click)="selectBank(b.code)"
     (keyup.enter)="selectBank(b.code)"
   >
     <div class="row">
       <div class="logo">{{ b.name }}</div>
-      <div class="mini">{{ b.connected ? 'Connected' : 'Not Connected' }}</div>
+      <div class="mini" *ngIf="b.connected">Connected</div>
     </div>
-
     <div class="balance" *ngIf="b.balanceTRY !== undefined">
       {{ b.balanceTRY | number:'1.2-2' }} TRY
     </div>
   </div>
 </div>
 
-<!-- Detay Paneli -->
-<section *ngIf="selectedBank() as code" class="bank-detail">
-  <div class="panel-header">
-    <h2>{{ selectedBankName() }}</h2>
-    <div class="spacer"></div>
-    <button class="danger" (click)="logout()">Güvenli Çıkış</button>
-  </div>
+<!-- VakıfBank hesapları -->
+<section *ngIf="vakifMi(); else otherBanks">
+  <h2>VakıfBank Hesapları</h2>
+  <ul>
+    <li *ngFor="let acc of vakifAccounts(); trackBy: trackByIndex">
+      {{ acc.accountNumber }} – {{ acc.balance | number:'1.2-2' }} TRY
+    </li>
+  </ul>
+</section>
 
-  <div class="grid">
-    <!-- Hesaplar -->
-    <div class="card">
-      <h3>Hesaplarım</h3>
+<!-- Diğer bankalar -->
+<ng-template #otherBanks>
+  <h2>Hesaplar</h2>
+  <ul>
+    <li *ngFor="let acc of accounts(); trackBy: trackByIndex">
+      {{ acc.iban }} – {{ acc.balance | number:'1.2-2' }} TRY
+    </li>
+  </ul>
+</ng-template>
 
-      <div class="acc" *ngFor="let a of accounts()">
-        <div class="acc-left">
-          <div class="name">{{ a.name }}</div>
-          <!-- 👇 Sansürsüz IBAN -->
-          <div class="iban">{{ a.iban }}</div>
-        </div>
-        <div class="acc-right">
-          <div class="bal">{{ a.balance | number:'1.2-2' }} {{ a.currency }}</div>
-          <div class="actions">
-            <button class="ghost">View</button>
-            <button class="ghost">Transactions</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="empty" *ngIf="accounts().length === 0">Hesap bulunamadı.</div>
-    </div>
-
-    <!-- Son İşlemler -->
-    <div class="card">
-      <h3>Son İşlemler</h3>
-
-      <div class="tx" *ngFor="let t of recent()">
-        <div class="left">
-          <div class="desc">{{ t.description }}</div>
-          <div class="date">{{ t.date | date:'short' }}</div>
-        </div>
-        <div class="amt" [class.minus]="t.amount < 0" [class.plus]="t.amount >= 0">
-          {{ t.amount | number:'1.2-2' }} {{ t.currency }}
-        </div>
-      </div>
-
-      <div class="empty" *ngIf="recent().length === 0">Gösterilecek işlem yok.</div>
-    </div>
-  </div>
+<!-- Son işlemler -->
+<section>
+  <h2>Son İşlemler</h2>
+  <ul>
+    <li *ngFor="let tx of recent(); trackBy: trackByIndex">
+      {{ tx.date }} – {{ tx.amount | number:'1.2-2' }} TRY – {{ tx.description }}
+    </li>
+  </ul>
 </section>
