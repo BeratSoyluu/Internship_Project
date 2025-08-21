@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-
 import { HttpClient, HttpParams } from '@angular/common/http';
 import {
   AccountDto,
@@ -12,8 +11,7 @@ import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 
 import { VakifAccountRow } from '../../features/vakifbank/models/vakif-account-row';
-
-
+import { VbAccountDetail } from '../../features/vakifbank/models/vb-account-detail.model';
 
 @Injectable({ providedIn: 'root' })
 export class OpenBankingService {
@@ -35,6 +33,13 @@ export class OpenBankingService {
     if (typeof v === 'string') return ['true', '1', 'yes'].includes(v.toLowerCase());
     if (typeof v === 'number') return v !== 0;
     return fallback;
+  };
+
+  private toISODate = (v: any): string | null => {
+    if (!v) return null;
+    // v ISO değilse Date'e çevirmeyi dene
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? this.toStr(v) : d.toISOString();
   };
 
   // -------------------- Banks --------------------
@@ -102,10 +107,10 @@ export class OpenBankingService {
         const list: any[] = Array.isArray(res)
           ? res
           : Array.isArray(res?.data?.accounts)
-            ? res.data.accounts
-            : Array.isArray(res?.accounts)
-              ? res.accounts
-              : [];
+          ? res.data.accounts
+          : Array.isArray(res?.accounts)
+          ? res.accounts
+          : [];
 
         return list.map((raw) => ({
           currency: this.toStr(raw.currency ?? raw.Currency ?? 'TL'),
@@ -118,7 +123,7 @@ export class OpenBankingService {
           accountType: this.toStr(
             raw.accountType ?? raw.AccountType ?? raw.accountTypeName ?? raw.AccountTypeName ?? ''
           ),
-          // 🔴 BURASI ÖNEMLİ: accountNumber anahtarını üret
+          // 🔴 accountNumber anahtarını üret
           accountNumber: this.toStr(
             raw.accountNumber ?? raw.AccountNumber ?? raw.accountNo ?? raw.AccountNo
           ),
@@ -132,12 +137,73 @@ export class OpenBankingService {
     return this.getVakifAccountList();
   }
 
-  // -------------------- VakıfBank: Detay & Hareketler (ilerisi için) --------------------
-  /** Hesap detayları – backend'inde params alan bir uç varsa kullan */
+  // -------------------- VakıfBank: Detay & Hareketler --------------------
+  /** Hesap detayları – backend'in querystring aldığı sürüm */
   getVakifAccountDetails(accountNumber: string): Observable<any> {
     const params = new HttpParams().set('accountNumber', accountNumber);
     return this.http.get<any>(`${this.base}/vakif/account-details`, { params });
   }
+
+  /**
+   * Hesap detayları (normalize edilmiş)
+   * UI doğrudan bunu kullanırsa modal tüm alanları güvenle doldurur.
+   */
+
+getVakifAccountDetailsNormalized(accountNumber: string): Observable<VbAccountDetail> {
+  const params = new HttpParams().set('accountNumber', accountNumber);
+
+  return this.http.get<any>(`${this.base}/vakif/account-details`, { params }).pipe(
+    map((res: any): VbAccountDetail => {
+      // Postman: { Data: { AccountInfo: { ... } } }
+      const info = res?.Data?.AccountInfo ?? {};
+
+      // Durum
+      const status = String(info.AccountStatus ?? '').toUpperCase();
+      const hesapDurumu: 'A' | 'K' = status === 'K' ? 'K' : 'A';
+
+      // Tür
+      const t = Number(info.AccountType ?? 0);
+      const hesapTuru: 1 | 2 | 3 | 4 = ([1,2,3,4] as const).includes(t as any) ? (t as any) : 2;
+
+      // Tarihler -> Date (DatePipe daha stabil işler)
+      const acilisIso = String(info.OpeningDate ?? '');              // "2022-09-14T00:00:00"
+      const sonIslemIso = String(info.LastTransactionDate ?? '');    // "2025-04-09T16:00:01"
+
+      return {
+        paraBirimi:     String(info.CurrencyCode ?? 'TL'),
+        sonIslemTarihi: sonIslemIso ? new Date(sonIslemIso) as any : '',
+        hesapDurumu,
+        acilisTarihi:   acilisIso ? new Date(acilisIso) as any : '',
+        iban:           String(info.IBAN ?? ''),
+        musteriNo:      String(info.CustomerNumber ?? ''),
+        bakiye:         this.toNum(info.RemainingBalance ?? info.Balance, 0),
+        hesapTuru,
+        subeKodu:       String(info.BranchCode ?? ''),
+        hesapNo:        String(info.AccountNumber ?? ''),
+      };
+    }),
+    catchError(() =>
+      of<VbAccountDetail>({
+        paraBirimi: 'TL',
+        sonIslemTarihi: '',
+        hesapDurumu: 'A',
+        acilisTarihi: '',
+        iban: '',
+        musteriNo: '',
+        bakiye: 0,
+        hesapTuru: 2,
+        subeKodu: '',
+        hesapNo: '',
+      })
+    )
+  );
+}
+
+
+
+
+
+
 
   /** Hesap hareketleri – tarih aralığı/limit opsiyonel */
   getVakifAccountTransactions(

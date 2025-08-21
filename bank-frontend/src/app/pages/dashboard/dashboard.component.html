@@ -43,7 +43,7 @@
           <th>Para Birimi</th>
           <th>Son İşlem Tarihi</th>
           <th>Hesap Durumu</th>
-          <th>iban</th>
+          <th>IBAN</th>
           <th>Bakiye</th>
           <th>Hesap Türü</th>
           <th>Hesap Numarası</th>
@@ -94,3 +94,39 @@
     </li>
   </ul>
 </section>
+
+<!-- ===================== -->
+<!-- 🔹 HESAP DETAY MODALI -->
+<!-- ===================== -->
+
+<!-- Arkaplan -->
+<div class="vb-backdrop" *ngIf="detailOpen()" (click)="closeDetail()"></div>
+
+<!-- Modal içerik -->
+<div class="vb-modal" *ngIf="detailOpen()" role="dialog" aria-modal="true" aria-label="Hesap Detayları">
+  <h3>Hesap Detayları</h3>
+
+  <!-- Servisin normalize ettiği TÜRKÇE alan adları -->
+  <div *ngIf="vbDetail() as d; else loadingTpl">
+  <p class="vb-row"><strong>Para Birimi:</strong> {{ d.paraBirimi || '-' }}</p>
+  <p class="vb-row"><strong>Son İşlem Tarihi:</strong>
+    {{ d.sonIslemTarihi ? (d.sonIslemTarihi | date:'yyyy-MM-dd HH:mm:ss') : '-' }}</p>
+  <p class="vb-row"><strong>Hesap Durumu:</strong> {{ mapStatus(d.hesapDurumu) }}</p>
+  <p class="vb-row"><strong>Açılış Tarihi:</strong>
+    {{ d.acilisTarihi ? (d.acilisTarihi | date:'yyyy-MM-dd') : '-' }}</p>
+  <p class="vb-row"><strong>IBAN:</strong> {{ d.iban || '-' }}</p>
+  <p class="vb-row"><strong>Müşteri Numarası:</strong> {{ d.musteriNo || '-' }}</p>
+  <p class="vb-row"><strong>Bakiye:</strong> {{ d.bakiye | number:'1.2-2' }} TRY</p>
+  <p class="vb-row"><strong>Hesap Türü:</strong> {{ mapAccountType(d.hesapTuru) }}</p>
+  <p class="vb-row"><strong>Şube Kodu:</strong> {{ d.subeKodu || '-' }}</p>
+  <p class="vb-row"><strong>Hesap Numarası:</strong> {{ d.hesapNo || '-' }}</p>
+</div>
+
+  <ng-template #loadingTpl>
+    <div class="vb-row" style="opacity:.7;">Yükleniyor…</div>
+  </ng-template>
+
+  <div class="vb-actions">
+    <button class="vb-btn" (click)="closeDetail()">Close</button>
+  </div>
+</div>

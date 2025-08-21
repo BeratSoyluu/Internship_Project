@@ -1,0 +1,16 @@
+.vb-wrapper { padding: 8px 0 24px; }
+.table-scroll { overflow:auto; border-radius:12px; box-shadow:0 1px 8px rgba(0,0,0,.06); }
+.vb-table { width:100%; border-collapse:separate; border-spacing:0; min-width:960px; }
+.vb-table thead th {
+  background:#e5e5e5; padding:10px 12px; text-align:left; font-weight:700; border-right:1px solid #d9d9d9;
+}
+.vb-table thead th:first-child { border-top-left-radius:10px; }
+.vb-table thead th:last-child { border-top-right-radius:10px; border-right:none; }
+.vb-table tbody td { padding:10px 12px; border-top:1px solid #eee; vertical-align:middle; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.num { text-align:right; font-variant-numeric: tabular-nums; }
+.empty { text-align:center; color:#888; }
+.actions { display:flex; gap:8px; }
+.pill { border:none; padding:6px 10px; border-radius:14px; background:#ffd08a; cursor:pointer; }
+.pill.warn { background:#ffb36b; }
+.pill:hover { filter:brightness(0.95); }

@@ -1,88 +1,97 @@
 /* ===== ÜST KISIM (başlık + kart alanı) ===== */
 .page-hero{
-  /* geniş, yumuşak üst şerit */
   background: linear-gradient(180deg, #f6f7fb 0%, #f7f8fc 60%, rgba(247,248,252,0) 100%);
   padding: 12px 0 16px;
   margin: 0 0 12px;
   border-bottom: 1px solid #eef0f4;
 }
-.hero-inner{
-  max-width: 1160px;           /* sayfa içi hizalama */
-  margin: 0 auto;
-  padding: 0 12px;
-  position: relative;
-}
-.hero-title{
-  margin: 4px 0 12px;
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: .2px;
-}
+.hero-inner{ max-width:1160px; margin:0 auto; padding:0 12px; position:relative; }
+.hero-title{ margin:4px 0 12px; font-size:34px; font-weight:800; letter-spacing:.2px; }
 
 /* sağ üst işlemler */
 .hero-actions{
-  position: absolute;
-  top: 6px;
-  right: 12px;
-  display: flex;
-  gap: 8px;
+  position:absolute; top:6px; right:12px; display:flex; gap:8px;
 }
-.btn{
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
+.btn{ padding:6px 10px; border-radius:10px; font-size:12px; cursor:pointer; border:1px solid transparent; }
 .btn.ghost{ background:#f7f7f7; border-color:#ddd; }
 .btn.danger{ background:#ffebeb; border-color:#f3b0b0; }
 
 /* banka kart ızgarası */
-.banks{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(260px, 1fr)); /* iki kart yan yana */
-  gap: 16px;
-}
+.banks{ display:grid; grid-template-columns:repeat(2,minmax(260px,1fr)); gap:16px; }
 
 /* banka kartı (kompakt) */
 .bank-card{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  padding:10px 14px;
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:12px;
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:10px 14px; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
   box-shadow:0 3px 10px rgba(0,0,0,.06);
   transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
   cursor:pointer;
 }
 .bank-card:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
 .bank-card.active{ border-color:#2f5dc6; box-shadow:0 8px 20px rgba(47,93,198,.16); }
-
 .bank-card .left .logo{ font-size:14px; font-weight:600; color:#111827; margin-bottom:4px; }
 .bank-card .left .balance{ font-size:15px; font-weight:800; color:#111; }
 .bank-card .right .mini{ font-size:11px; color:#6b7280; white-space:nowrap; }
 
 /* mobil uyum */
-@media (max-width: 720px){
-  .hero-title{ font-size: 28px; }
-  .hero-actions{ position: static; margin-bottom: 8px; }
-  .banks{ grid-template-columns: 1fr; } /* kartlar alta alta */
+@media (max-width:720px){
+  .hero-title{ font-size:28px; }
+  .hero-actions{ position:static; margin-bottom:8px; }
+  .banks{ grid-template-columns:1fr; }
 }
 
 /* ===== VAKIFBANK TABLO ===== */
-.table-scroll{overflow:auto;border-radius:12px;box-shadow:0 1px 8px rgba(0,0,0,.06)}
-.vb-table{width:100%;border-collapse:separate;border-spacing:0;min-width:960px}
-.vb-table thead th{background:#e5e5e5;padding:10px 12px;text-align:left;font-weight:700;border-right:1px solid #d9d9d9}
-.vb-table thead th:first-child{border-top-left-radius:10px}
-.vb-table thead th:last-child{border-top-right-radius:10px;border-right:none}
-.vb-table tbody td{padding:10px 12px;border-top:1px solid #eee;vertical-align:middle}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.num{text-align:right;font-variant-numeric:tabular-nums}
-.actions{display:flex;gap:8px}
-.pill{border:none;padding:6px 10px;border-radius:14px;background:#ffd08a;cursor:pointer}
-.pill.warn{background:#ffb36b}
-.pill:hover{filter:brightness(0.95)}
-.empty{padding:12px;color:#777}
+.table-scroll{ overflow:auto; border-radius:12px; box-shadow:0 1px 8px rgba(0,0,0,.06); }
+.vb-table{ width:100%; border-collapse:separate; border-spacing:0; min-width:960px; }
+.vb-table thead th{
+  position:sticky; top:0; z-index:1;
+  background:#e5e5e5; padding:10px 12px; text-align:left; font-weight:700; border-right:1px solid #d9d9d9;
+}
+.vb-table thead th:first-child{ border-top-left-radius:10px; }
+.vb-table thead th:last-child{ border-top-right-radius:10px; border-right:none; }
+.vb-table tbody td{ padding:10px 12px; border-top:1px solid #eee; vertical-align:middle; }
+.mono{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.num{ text-align:right; font-variant-numeric:tabular-nums; }
+.actions{ display:flex; gap:8px; }
+
+/* VakıfBank turuncu “pill”ler */
+.pill{
+  border:none; padding:6px 12px; border-radius:16px; cursor:pointer;
+  background:linear-gradient(180deg,#ffd08a 0%, #ffbd73 100%);
+  transition:filter .12s ease, transform .04s ease;
+}
+.pill.warn{
+  background:linear-gradient(180deg,#ffb36b 0%, #ff9d4d 100%);
+}
+.pill:hover{ filter:brightness(0.96); }
+.pill:active{ transform:scale(0.98); }
+.pill:focus-visible{ outline:2px solid #2f5dc6; outline-offset:1px; }
+
+.empty{ padding:12px; color:#777; }
+
+/* ===== MODAL (Hesap Detayları) ===== */
+.vb-backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:1000;
+  backdrop-filter:saturate(110%) blur(1px);
+}
+.vb-modal{
+  position:fixed; z-index:1001; top:50%; left:50%; transform:translate(-50%,-50%) scale(1);
+  background:#fff; width:min(560px,92vw); max-height:84vh; overflow:auto;
+  padding:20px 22px; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.3);
+  animation:vb-pop .14s ease-out;
+}
+@keyframes vb-pop{ from{ transform:translate(-50%,-50%) scale(.96); opacity:.6; } to{ transform:translate(-50%,-50%) scale(1); opacity:1; } }
+.vb-modal h3{ margin:0 0 12px 0; font-size:20px; font-weight:700; }
+.vb-modal .vb-row{ margin:8px 0; }
+.vb-modal .vb-row strong{ display:inline-block; min-width:140px; color:#111; }
+.vb-modal .vb-actions{ display:flex; justify-content:flex-end; margin-top:16px; }
+.vb-modal .vb-btn{
+  background:#f1f1f1; border:1px solid #e7e7e7; padding:8px 14px; border-radius:8px; cursor:pointer;
+}
+.vb-modal .vb-btn:hover{ filter:brightness(.96); }
+
+/* Küçük ekran uyumu */
+@media (max-width:480px){
+  .vb-modal{ width:94vw; padding:16px; }
+  .vb-modal .vb-row strong{ min-width:120px; }
+}
