@@ -1,9 +1,9 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  OpenBankingService,
-  VakifAccountRow
-} from '../../core/services/open-banking.service';
+import { Router } from '@angular/router';
+
+import { OpenBankingService } from '../../core/services/open-banking.service';
+import { VakifAccountRow } from '../../features/vakifbank/models/vakif-account-row'; // ✅ modelden import et
 import { AuthService } from '../../services/auth.service';
 import { BankDto, BankCode, AccountDto, TransactionDto } from '../../core/models/open-banking.models';
 
@@ -17,6 +17,7 @@ import { BankDto, BankCode, AccountDto, TransactionDto } from '../../core/models
 export class DashboardComponent implements OnInit {
   private api = inject(OpenBankingService);
   private auth = inject(AuthService);
+  private router = inject(Router);
 
   banks = signal<BankDto[]>([]);
   selectedBank = signal<BankCode | null>(null);
@@ -126,6 +127,15 @@ export class DashboardComponent implements OnInit {
       next: () => this.loadBanks(),
       error: err => console.error('[dashboard] linkNewBank error:', err),
     });
+  }
+
+  // ✅ eksik metotları ekledim
+  openVbDetails(acc: VakifAccountRow) {
+    this.router.navigate(['/vakifbank/accounts', acc.accountNumber, 'details']);
+  }
+
+  openVbTransactions(acc: VakifAccountRow) {
+    this.router.navigate(['/vakifbank/accounts', acc.accountNumber, 'transactions']);
   }
 
   logout() {

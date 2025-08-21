@@ -1,0 +1,44 @@
+<section class="vb-wrapper">
+  <h2>VakıfBank</h2>
+  <h3>Hesap Listesi</h3>
+
+  <div *ngIf="loading()">Yükleniyor…</div>
+  <div *ngIf="error()">{{ error() }}</div>
+
+  <div class="table-scroll" *ngIf="!loading() && !error()">
+    <table class="vb-table">
+      <thead>
+        <tr>
+          <th>Para Birimi</th>
+          <th>Son İşlem Tarihi</th>
+          <th>Hesap Durumu</th>
+          <th>iban</th>
+          <th>Bakiye</th>
+          <th>Hesap Türü</th>
+          <th>Hesap Numarası</th>
+          <th style="width:220px">Aksiyon</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let r of rows()">
+          <td>{{ r.currency }}</td>
+          <td>{{ r.lastTransactionDate | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ r.status }}</td>
+          <td class="mono">{{ r.iban }}</td>
+          <td class="num">{{ r.balance | number:'1.2-2' }} TRY</td>
+          <td>{{ r.accountType }}</td>
+          <td class="mono">{{ r.accountNumber }}</td>
+          <td class="actions">
+            <button class="pill" (click)="openDetails(r)">Hesap Detayları</button>
+            <button class="pill warn" (click)="openTransactions(r)">Hesap Hareketleri</button>
+          </td>
+        </tr>
+
+        <tr *ngIf="rows().length === 0">
+          <td colspan="8" class="empty">Gösterilecek hesap bulunamadı.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

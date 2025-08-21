@@ -1,77 +1,88 @@
-:host { display:block; padding:16px; }
-
-/* ÜST BAR */
-.topbar{
-  display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
+/* ===== ÜST KISIM (başlık + kart alanı) ===== */
+.page-hero{
+  /* geniş, yumuşak üst şerit */
+  background: linear-gradient(180deg, #f6f7fb 0%, #f7f8fc 60%, rgba(247,248,252,0) 100%);
+  padding: 12px 0 16px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid #eef0f4;
 }
-.topbar .right{ display:flex; gap:8px; }
-button.add,button.danger{
-  padding:8px 12px; border:0; border-radius:10px; cursor:pointer; font-weight:500;
+.hero-inner{
+  max-width: 1160px;           /* sayfa içi hizalama */
+  margin: 0 auto;
+  padding: 0 12px;
+  position: relative;
 }
-button.add{ background:#f3f6ff; }
-button.danger{ background:#ffecec; }
+.hero-title{
+  margin: 4px 0 12px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
 
-/* BANKA KARTLARI */
+/* sağ üst işlemler */
+.hero-actions{
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+}
+.btn{
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn.ghost{ background:#f7f7f7; border-color:#ddd; }
+.btn.danger{ background:#ffebeb; border-color:#f3b0b0; }
+
+/* banka kart ızgarası */
 .banks{
-  display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr)); /* iki kart yan yana */
+  gap: 16px;
 }
+
+/* banka kartı (kompakt) */
 .bank-card{
-  background:#fff; border-radius:16px; padding:16px;
-  box-shadow:0 2px 10px rgba(0,0,0,.06); cursor:pointer; outline:none; transition:0.2s;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:10px 14px;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  box-shadow:0 3px 10px rgba(0,0,0,.06);
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  cursor:pointer;
 }
-.bank-card:hover{ transform:translateY(-2px); }
-.bank-card.active{ box-shadow:0 0 0 2px #ff8c00 inset; }
-.bank-card .row{ display:flex; justify-content:space-between; align-items:center; }
-.bank-card .mini{ color:#777; font-size:12px; }
-.balance{ margin-top:10px; font-weight:600; }
+.bank-card:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
+.bank-card.active{ border-color:#2f5dc6; box-shadow:0 8px 20px rgba(47,93,198,.16); }
 
-/* DETAY PANELİ */
-.bank-detail{ margin-top:18px; }
-.panel-header{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
-.panel-header .spacer{ flex:1; }
+.bank-card .left .logo{ font-size:14px; font-weight:600; color:#111827; margin-bottom:4px; }
+.bank-card .left .balance{ font-size:15px; font-weight:800; color:#111; }
+.bank-card .right .mini{ font-size:11px; color:#6b7280; white-space:nowrap; }
 
-/* GRID / KARTLAR */
-.grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.card{ background:#fff; border-radius:14px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
-
-/* HESAPLAR */
-.acc{
-  display:flex; align-items:center; justify-content:space-between;
-  padding:10px 0; border-bottom:1px solid #eee;
-}
-.acc:last-child{ border-bottom:0; }
-.acc-left .iban{ font-size:12px; color:#666; margin-top:4px; }
-.acc-right{ text-align:right; }
-.actions{ margin-top:6px; }
-button.ghost{
-  padding:6px 10px; border:0; background:#f3f3f4; border-radius:10px; margin-left:6px; cursor:pointer;
+/* mobil uyum */
+@media (max-width: 720px){
+  .hero-title{ font-size: 28px; }
+  .hero-actions{ position: static; margin-bottom: 8px; }
+  .banks{ grid-template-columns: 1fr; } /* kartlar alta alta */
 }
 
-/* İŞLEMLER */
-.tx{ display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #eee; }
-.tx:last-child{ border-bottom:0; }
-.amt.minus{ color:#c21; }
-.amt.plus{ color:#1a7; }
-.empty{ color:#777; font-size:13px; padding:6px 0; }
-
-/* VAKIFBANK TABLOSU */
-.vakif-table-wrapper { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); overflow:hidden; }
-.vakif-table { width:100%; border-collapse:separate; border-spacing:0; font-size:14px; }
-.vakif-table thead tr { background:#f7f7f7; }
-.vakif-table th, .vakif-table td { padding:12px 14px; border-bottom:1px solid #eee; text-align:left; }
-.vakif-table th { font-weight:600; color:#444; }
-.vakif-table .iban { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:13px; }
-.vakif-table .actions { white-space:nowrap; text-align:right; }
-button.pill{
-  padding:6px 12px; border:none; border-radius:999px; font-weight:500; cursor:pointer;
-  background:#ff9f2f; color:#222; margin-left:6px; transition:0.2s;
-}
-button.pill:hover{ opacity:0.9; }
-button.pill.warn{ background:#ff7f2f; }
-.vakif-table .empty{ text-align:center; color:#777; padding:18px; }
-
-/* RESPONSIVE */
-@media (max-width: 900px){
-  .grid{ grid-template-columns: 1fr; }
-  .vakif-table th, .vakif-table td{ font-size:12px; padding:8px 10px; }
-}
+/* ===== VAKIFBANK TABLO ===== */
+.table-scroll{overflow:auto;border-radius:12px;box-shadow:0 1px 8px rgba(0,0,0,.06)}
+.vb-table{width:100%;border-collapse:separate;border-spacing:0;min-width:960px}
+.vb-table thead th{background:#e5e5e5;padding:10px 12px;text-align:left;font-weight:700;border-right:1px solid #d9d9d9}
+.vb-table thead th:first-child{border-top-left-radius:10px}
+.vb-table thead th:last-child{border-top-right-radius:10px;border-right:none}
+.vb-table tbody td{padding:10px 12px;border-top:1px solid #eee;vertical-align:middle}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:8px}
+.pill{border:none;padding:6px 10px;border-radius:14px;background:#ffd08a;cursor:pointer}
+.pill.warn{background:#ffb36b}
+.pill:hover{filter:brightness(0.95)}
+.empty{padding:12px;color:#777}

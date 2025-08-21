@@ -1,31 +1,76 @@
-<!-- Banka kartları -->
-<div class="banks">
-  <div
-    class="bank-card"
-    *ngFor="let b of banks(); trackBy: trackByIndex"
-    [class.active]="selectedBank() === b.code"
-    role="button" tabindex="0"
-    (click)="selectBank(b.code)"
-    (keyup.enter)="selectBank(b.code)"
-  >
-    <div class="row">
-      <div class="logo">{{ b.name }}</div>
-      <div class="mini" *ngIf="b.connected">Connected</div>
+<header class="page-hero">
+  <div class="hero-inner">
+    <h1 class="hero-title">Open Banking</h1>
+
+    <div class="hero-actions">
+      <button class="btn ghost" (click)="openAddBank()">+ Banka Ekle</button>
+      <button class="btn danger" (click)="logout()">Güvenli Çıkış</button>
     </div>
-    <div class="balance" *ngIf="b.balanceTRY !== undefined">
-      {{ b.balanceTRY | number:'1.2-2' }} TRY
+
+    <!-- Banka kartları -->
+    <div class="banks">
+      <div
+        class="bank-card"
+        *ngFor="let b of banks(); trackBy: trackByIndex"
+        [class.active]="selectedBank() === b.code"
+        role="button" tabindex="0"
+        (click)="selectBank(b.code)"
+        (keyup.enter)="selectBank(b.code)"
+      >
+        <div class="left">
+          <div class="logo">{{ b.name }}</div>
+          <div class="balance" *ngIf="b.balanceTRY !== undefined">
+            {{ b.balanceTRY | number:'1.2-2' }} TRY
+          </div>
+        </div>
+        <div class="right">
+          <span class="mini" *ngIf="b.connected">Connected</span>
+        </div>
+      </div>
     </div>
   </div>
-</div>
+</header>
 
-<!-- VakıfBank hesapları -->
-<section *ngIf="vakifMi(); else otherBanks">
-  <h2>VakıfBank Hesapları</h2>
-  <ul>
-    <li *ngFor="let acc of vakifAccounts(); trackBy: trackByIndex">
-      {{ acc.accountNumber }} – {{ acc.balance | number:'1.2-2' }} TRY
-    </li>
-  </ul>
+<!-- VakıfBank hesapları (tablo) -->
+<section *ngIf="vakifMi(); else otherBanks" class="vb-wrapper">
+  <h2>VakıfBank</h2>
+  <h3>Hesap Listesi</h3>
+
+  <div class="table-scroll" *ngIf="vakifAccounts()?.length; else vbEmpty">
+    <table class="vb-table">
+      <thead>
+        <tr>
+          <th>Para Birimi</th>
+          <th>Son İşlem Tarihi</th>
+          <th>Hesap Durumu</th>
+          <th>iban</th>
+          <th>Bakiye</th>
+          <th>Hesap Türü</th>
+          <th>Hesap Numarası</th>
+          <th style="width:220px">Aksiyon</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let acc of vakifAccounts(); trackBy: trackByIndex">
+          <td>{{ acc.currency }}</td>
+          <td>{{ acc.lastTransactionDate | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ acc.status || 'Aktif' }}</td>
+          <td class="mono">{{ acc.iban }}</td>
+          <td class="num">{{ acc.balance | number:'1.2-2' }} TRY</td>
+          <td>{{ acc.accountType }}</td>
+          <td class="mono">{{ acc.accountNumber }}</td>
+          <td class="actions">
+            <button class="pill" (click)="openVbDetails(acc)">Hesap Detayları</button>
+            <button class="pill warn" (click)="openVbTransactions(acc)">Hesap Hareketleri</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ng-template #vbEmpty>
+    <div class="empty">Gösterilecek VakıfBank hesabı bulunamadı.</div>
+  </ng-template>
 </section>
 
 <!-- Diğer bankalar -->
@@ -33,17 +78,19 @@
   <h2>Hesaplar</h2>
   <ul>
     <li *ngFor="let acc of accounts(); trackBy: trackByIndex">
-      {{ acc.iban }} – {{ acc.balance | number:'1.2-2' }} TRY
+      {{ acc.iban }} – {{ acc.balance | number:'1.2-2' }} {{ acc.currency || 'TRY' }}
     </li>
   </ul>
 </ng-template>
 
-<!-- Son işlemler -->
-<section>
+<!-- Son işlemler (SADECE MyBank için) -->
+<section *ngIf="!vakifMi()">
   <h2>Son İşlemler</h2>
   <ul>
     <li *ngFor="let tx of recent(); trackBy: trackByIndex">
-      {{ tx.date }} – {{ tx.amount | number:'1.2-2' }} TRY – {{ tx.description }}
+      {{ tx.date | date:'yyyy-MM-dd HH:mm:ss' }} –
+      {{ tx.amount | number:'1.2-2' }} {{ tx.currency || 'TRY' }} –
+      {{ tx.description }}
     </li>
   </ul>
 </section>
