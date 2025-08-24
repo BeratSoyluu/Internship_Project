@@ -2,9 +2,10 @@ using System.Security.Claims;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 using Staj_Proje_1.Models;
-using Staj_Proje_1.Models.OpenBanking;
 using Staj_Proje_1.Services;
+using OB = Staj_Proje_1.Models.OpenBanking;
 
 namespace Staj_Proje_1.Controllers
 {
@@ -39,7 +40,7 @@ namespace Staj_Proje_1.Controllers
         }
 
         [HttpGet("linked-banks")]
-        public async Task<ActionResult<IEnumerable<BankDto>>> GetLinkedBanks(CancellationToken ct)
+        public async Task<ActionResult<IEnumerable<OB.BankDto>>> GetLinkedBanks(CancellationToken ct)
         {
             var userId = await GetUserIdAsync();
             var list = await _svc.GetLinkedBanksAsync(userId, ct);
@@ -47,7 +48,7 @@ namespace Staj_Proje_1.Controllers
         }
 
         [HttpPost("link")]
-        public async Task<ActionResult<BankDto>> Link([FromBody] LinkBankRequest req, CancellationToken ct)
+        public async Task<ActionResult<OB.BankDto>> Link([FromBody] OB.LinkBankRequest req, CancellationToken ct)
         {
             var userId = await GetUserIdAsync();
             var dto = await _svc.LinkBankAsync(userId, req, ct);
@@ -55,7 +56,7 @@ namespace Staj_Proje_1.Controllers
         }
 
         [HttpGet("accounts")]
-        public async Task<ActionResult<IEnumerable<AccountDto>>> Accounts([FromQuery] BankCode bank, CancellationToken ct)
+        public async Task<ActionResult<IEnumerable<OB.AccountDto>>> Accounts([FromQuery] OB.BankCode bank, CancellationToken ct)
         {
             var userId = await GetUserIdAsync();
             var list = await _svc.GetAccountsAsync(userId, bank, ct);
@@ -63,11 +64,64 @@ namespace Staj_Proje_1.Controllers
         }
 
         [HttpGet("recent-transactions")]
-        public async Task<ActionResult<IEnumerable<Models.TransactionDto>>> Recent([FromQuery] BankCode bank, [FromQuery] int take = 5, CancellationToken ct = default)
+        public async Task<ActionResult<IEnumerable<OB.TransactionDto>>> Recent([FromQuery] OB.BankCode bank, [FromQuery] int take = 5, CancellationToken ct = default)
         {
             var userId = await GetUserIdAsync();
             var list = await _svc.GetRecentTransactionsAsync(userId, bank, take, ct);
             return Ok(list);
+        }
+
+        // =========================
+        // NEW: MyBank Hesap Oluştur
+        // =========================
+
+        public record CreateMyBankAccountRequest(string? Name, string? Currency);
+
+        private static string MaskIban(string? iban)
+        {
+            if (string.IsNullOrWhiteSpace(iban)) return "TR** **** **** **** **** **";
+            var clean = System.Text.RegularExpressions.Regex.Replace(iban, @"\s+", "");
+            if (clean.Length <= 10) return clean;
+
+            var start = clean[..6];
+            var end   = clean[^4..];
+            var middle = new string('*', clean.Length - 10);
+            var masked = start + middle + end;
+            return System.Text.RegularExpressions.Regex.Replace(masked, ".{4}", "$0 ").Trim();
+        }
+
+        // Frontend: POST /api/open-banking/mybank/accounts
+        [HttpPost("mybank/accounts")]
+        [Consumes("application/json")]
+        [ProducesResponseType(typeof(OB.AccountDto), StatusCodes.Status201Created)]
+        public async Task<ActionResult<OB.AccountDto>> CreateMyBankAccount([FromBody] CreateMyBankAccountRequest req, CancellationToken ct)
+        {
+            var userId = await GetUserIdAsync();
+
+            var created = await _svc.CreateMyBankAccountAsync(
+                userId,
+                req?.Name,
+                req?.Currency,
+                ct
+            );
+
+            // Positional ctor (id, bankCode, name, iban, balance, currency)
+            var dto = new OB.AccountDto(
+                created.Id.ToString(),
+                OB.BankCode.mybank,
+                string.IsNullOrWhiteSpace(created.AccountName)
+                    ? $"{(string.IsNullOrWhiteSpace(created.Currency) ? "TRY" : created.Currency)} Hesabı"
+                    : created.AccountName,
+                created.Iban,            // maskesiz
+                created.Balance,         // 0
+                string.IsNullOrWhiteSpace(created.Currency) ? "TRY" : created.Currency
+            );
+
+            return CreatedAtAction(
+                nameof(Accounts),
+                new { bank = OB.BankCode.mybank },
+                dto
+            );
         }
 
         // ---------------- VakıfBank: Account List (tablo için) ----------------
@@ -88,7 +142,6 @@ namespace Staj_Proje_1.Controllers
         public IActionResult VakifPing() => Ok("vakif-ok");
 
         // GET /api/open-banking/vakif/account-list
-        // NOT: [Authorize] ekli değil; dev/test’te kolay denemek için.
         [HttpGet("vakif/account-list")]
         public async Task<ActionResult<IEnumerable<VakifAccountRowDto>>> GetVakifAccountList(CancellationToken ct)
         {

@@ -22,9 +22,7 @@ namespace Staj_Proje_1.Controllers
             _bankService = bankService;
         }
 
-        // -------------------------------------------------------------
         // TOKEN
-        // -------------------------------------------------------------
         [HttpPost("token")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
@@ -42,9 +40,8 @@ namespace Staj_Proje_1.Controllers
             }
         }
 
-        // -------------------------------------------------------------
+
         // HESAP LİSTESİ
-        // -------------------------------------------------------------
         [HttpPost("accountList")]
         [ProducesResponseType(typeof(AccountListResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> AccountList()
@@ -54,9 +51,7 @@ namespace Staj_Proje_1.Controllers
             return Ok(list);
         }
 
-        // -------------------------------------------------------------
         // HESAP DETAYI
-        // -------------------------------------------------------------
         [HttpPost("accountDetail")]
         [ProducesResponseType(typeof(AccountInfo), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(object),      StatusCodes.Status400BadRequest)]
@@ -78,9 +73,7 @@ namespace Staj_Proje_1.Controllers
             }
         }
 
-        // -------------------------------------------------------------
         // HESAP HAREKETLERİ
-        // -------------------------------------------------------------
         [HttpPost("accountTransactions")]
         [ProducesResponseType(typeof(TransactionsResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> AccountTransactions([FromBody] AccountTransactionsRequest request)
@@ -98,9 +91,7 @@ namespace Staj_Proje_1.Controllers
 
     }
 
-    /// <summary>
     /// İstek gövdesinde yalnızca hesap numarası barındırır.
-    /// </summary>
     public class AccountDetailRequest
     {
         [JsonPropertyName("AccountNumber")]

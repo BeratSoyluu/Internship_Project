@@ -5,6 +5,7 @@ using Staj_Proje_1.Models;
 using Staj_Proje_1.Models.Dtos;
 using Staj_Proje_1.Services;
 using System.Security.Claims;
+using Staj_Proje_1.Models.OpenBanking;
 
 namespace Staj_Proje_1.Controllers
 {

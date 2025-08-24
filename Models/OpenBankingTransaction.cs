@@ -1,5 +1,6 @@
 using Staj_Proje_1.Models.Entities;
 
+
 namespace Staj_Proje_1.Models
 {
     public class Transaction

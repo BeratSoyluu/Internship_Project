@@ -2,131 +2,278 @@
   <div class="hero-inner">
     <h1 class="hero-title">Open Banking</h1>
 
+    <!-- Üst Butonlar -->
     <div class="hero-actions">
       <button class="btn ghost" (click)="openAddBank()">+ Banka Ekle</button>
       <button class="btn danger" (click)="logout()">Güvenli Çıkış</button>
     </div>
 
-    <!-- Banka kartları -->
+    <!-- Banka Kartları -->
     <div class="banks">
       <div
         class="bank-card"
         *ngFor="let b of banks(); trackBy: trackByIndex"
         [class.active]="selectedBank() === b.code"
+        [class.mybank]="isMyBank(b.code)"
         role="button" tabindex="0"
         (click)="selectBank(b.code)"
         (keyup.enter)="selectBank(b.code)"
       >
-        <div class="left">
-          <div class="logo">{{ b.name }}</div>
-          <div class="balance" *ngIf="b.balanceTRY !== undefined">
-            {{ b.balanceTRY | number:'1.2-2' }} TRY
+        <div class="row">
+          <div class="logo">
+            {{ b.name }}
+            <span class="pill" *ngIf="isMyBank(b.code)">Premium</span>
           </div>
+          <div class="status"><span class="dot"></span> Connected</div>
         </div>
-        <div class="right">
-          <span class="mini" *ngIf="b.connected">Connected</span>
+
+        <div class="balance">
+          {{ b.balanceTRY | number:'1.2-2' }} TRY
         </div>
       </div>
     </div>
-  </div>
-</header>
 
-<!-- VakıfBank hesapları (tablo) -->
-<section *ngIf="vakifMi(); else otherBanks" class="vb-wrapper">
-  <h2>VakıfBank</h2>
-  <h3>Hesap Listesi</h3>
+    <!-- VakıfBank Hesapları   -->
+    <section *ngIf="vakifMi(); else otherBanks" class="vb-wrapper">
+      <h2>VakıfBank</h2>
+      <h3>Hesap Listesi</h3>
 
-  <div class="table-scroll" *ngIf="vakifAccounts()?.length; else vbEmpty">
-    <table class="vb-table">
-      <thead>
-        <tr>
-          <th>Para Birimi</th>
-          <th>Son İşlem Tarihi</th>
-          <th>Hesap Durumu</th>
-          <th>IBAN</th>
-          <th>Bakiye</th>
-          <th>Hesap Türü</th>
-          <th>Hesap Numarası</th>
-          <th style="width:220px">Aksiyon</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let acc of vakifAccounts(); trackBy: trackByIndex">
-          <td>{{ acc.currency }}</td>
-          <td>{{ acc.lastTransactionDate | date:'yyyy-MM-dd HH:mm:ss' }}</td>
-          <td>{{ acc.status || 'Aktif' }}</td>
-          <td class="mono">{{ acc.iban }}</td>
-          <td class="num">{{ acc.balance | number:'1.2-2' }} TRY</td>
-          <td>{{ acc.accountType }}</td>
-          <td class="mono">{{ acc.accountNumber }}</td>
-          <td class="actions">
-            <button class="pill" (click)="openVbDetails(acc)">Hesap Detayları</button>
-            <button class="pill warn" (click)="openVbTransactions(acc)">Hesap Hareketleri</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+      <div class="table-scroll" *ngIf="vakifAccounts()?.length; else vbEmpty">
+        <table class="vb-table">
+          <thead>
+            <tr>
+              <th>Para Birimi</th>
+              <th>Son İşlem Tarihi</th>
+              <th>Hesap Durumu</th>
+              <th>IBAN</th>
+              <th>Bakiye</th>
+              <th>Hesap Türü</th>
+              <th>Hesap Numarası</th>
+              <th style="width:220px">Aksiyon</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let acc of vakifAccounts(); trackBy: trackByIndex">
+              <td>{{ acc.currency }}</td>
+              <td>{{ acc.lastTransactionDate | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+              <td>{{ acc.status || 'Aktif' }}</td>
+              <td class="mono">{{ acc.iban }}</td>
+              <td class="num">{{ acc.balance | number:'1.2-2' }} TRY</td>
+              <td>{{ acc.accountType }}</td>
+              <td class="mono">{{ acc.accountNumber }}</td>
+              <td class="actions">
+                <button class="pill" (click)="openVbDetails(acc)">Hesap Detayları</button>
+                <button class="pill warn" (click)="openVbTransactions(acc)">Hesap Hareketleri</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-  <ng-template #vbEmpty>
-    <div class="empty">Gösterilecek VakıfBank hesabı bulunamadı.</div>
-  </ng-template>
-</section>
+      <ng-template #vbEmpty>
+        <div class="empty">Gösterilecek VakıfBank hesabı bulunamadı.</div>
+      </ng-template>
+    </section>
 
-<!-- Diğer bankalar -->
-<ng-template #otherBanks>
-  <h2>Hesaplar</h2>
-  <ul>
-    <li *ngFor="let acc of accounts(); trackBy: trackByIndex">
-      {{ acc.iban }} – {{ acc.balance | number:'1.2-2' }} {{ acc.currency || 'TRY' }}
-    </li>
-  </ul>
-</ng-template>
+    <!-- MyBank: Hesaplar      -->
+    <ng-template #otherBanks>
+      <h2>Hesaplar</h2>
 
-<!-- Son işlemler (SADECE MyBank için) -->
-<section *ngIf="!vakifMi()">
-  <h2>Son İşlemler</h2>
-  <ul>
-    <li *ngFor="let tx of recent(); trackBy: trackByIndex">
-      {{ tx.date | date:'yyyy-MM-dd HH:mm:ss' }} –
-      {{ tx.amount | number:'1.2-2' }} {{ tx.currency || 'TRY' }} –
-      {{ tx.description }}
-    </li>
-  </ul>
-</section>
+      <!-- Hesaplar varsa: kartlar + “+” kartı -->
+      <div class="mybank-accounts" *ngIf="accounts()?.length; else emptyMyBank">
+        <div
+          class="account-card"
+          *ngFor="let acc of accounts(); trackBy: trackByIndex"
+          [class.selected]="isMyAccountSelected(acc.iban)"
+          (click)="selectMyAccount(acc)"
+        >
+          <div class="account-title">{{ acc.currency || 'TRY' }} Hesabı</div>
+          <div class="account-balance">
+            {{ currencyIcon(acc.currency) }} {{ acc.balance | number:'1.2-2' }} {{ acc.currency || 'TRY' }}
+          </div>
+          <div class="account-meta">
+            <span class="mono">{{ acc.iban }}</span>
+          </div>
+        </div>
 
-<!-- ===================== -->
-<!-- 🔹 HESAP DETAY MODALI -->
-<!-- ===================== -->
+        <!-- Hesap Ekle kartı -->
+        <button
+          type="button"
+          class="account-card add-card"
+          (click)="openAddMyAccount()"
+          aria-label="Hesap ekle"
+        >
+          <span class="plus" aria-hidden="true"></span>
+          <span class="add-text">Hesap Ekle</span>
+        </button>
+      </div>
 
-<!-- Arkaplan -->
-<div class="vb-backdrop" *ngIf="detailOpen()" (click)="closeDetail()"></div>
+      <!-- Hiç hesap yoksa: sadece “+” kartı -->
+      <ng-template #emptyMyBank>
+        <div class="mybank-accounts">
+          <button
+            type="button"
+            class="account-card add-card"
+            (click)="openAddMyAccount()"
+            aria-label="Hesap ekle"
+          >
+            <span class="plus" aria-hidden="true"></span>
+            <span class="add-text">Hesap Ekle</span>
+          </button>
+        </div>
+      </ng-template>
+    </ng-template>
 
-<!-- Modal içerik -->
-<div class="vb-modal" *ngIf="detailOpen()" role="dialog" aria-modal="true" aria-label="Hesap Detayları">
-  <h3>Hesap Detayları</h3>
+    <!-- MyBank: Son İşlemler  -->
+    <section *ngIf="!vakifMi()">
+      <div class="mybank-recent">
+        <div class="mybank-recent-header">Son İşlemler</div>
 
-  <!-- Servisin normalize ettiği TÜRKÇE alan adları -->
-  <div *ngIf="vbDetail() as d; else loadingTpl">
-  <p class="vb-row"><strong>Para Birimi:</strong> {{ d.paraBirimi || '-' }}</p>
-  <p class="vb-row"><strong>Son İşlem Tarihi:</strong>
-    {{ d.sonIslemTarihi ? (d.sonIslemTarihi | date:'yyyy-MM-dd HH:mm:ss') : '-' }}</p>
-  <p class="vb-row"><strong>Hesap Durumu:</strong> {{ mapStatus(d.hesapDurumu) }}</p>
-  <p class="vb-row"><strong>Açılış Tarihi:</strong>
-    {{ d.acilisTarihi ? (d.acilisTarihi | date:'yyyy-MM-dd') : '-' }}</p>
-  <p class="vb-row"><strong>IBAN:</strong> {{ d.iban || '-' }}</p>
-  <p class="vb-row"><strong>Müşteri Numarası:</strong> {{ d.musteriNo || '-' }}</p>
-  <p class="vb-row"><strong>Bakiye:</strong> {{ d.bakiye | number:'1.2-2' }} TRY</p>
-  <p class="vb-row"><strong>Hesap Türü:</strong> {{ mapAccountType(d.hesapTuru) }}</p>
-  <p class="vb-row"><strong>Şube Kodu:</strong> {{ d.subeKodu || '-' }}</p>
-  <p class="vb-row"><strong>Hesap Numarası:</strong> {{ d.hesapNo || '-' }}</p>
-</div>
+        <!-- ✅ MyBank birleşik hareket listesi -->
+        <ng-container *ngIf="myRecent()?.length; else noRecent">
+          <div class="mybank-tx" *ngFor="let tx of myRecent(); trackBy: trackByIndex">
+            <div class="mybank-tx-left">
+              <div class="mybank-tx-name">{{ tx.description || 'İşlem' }}</div>
+              <div class="mybank-tx-date">
+                {{ tx.accountName }} • {{ tx.transactionDate | date:'yyyy-MM-dd HH:mm:ss' }}
+              </div>
+            </div>
 
-  <ng-template #loadingTpl>
-    <div class="vb-row" style="opacity:.7;">Yükleniyor…</div>
-  </ng-template>
+            <div class="mybank-tx-amount"
+                 [ngClass]="{ positive: tx.direction === 'IN', negative: tx.direction === 'OUT' }">
+              {{ tx.direction === 'OUT' ? '-' : '+' }}
+              {{ tx.amount | number:'1.2-2' }} {{ tx.currency }}
+            </div>
+          </div>
+        </ng-container>
 
-  <div class="vb-actions">
-    <button class="vb-btn" (click)="closeDetail()">Close</button>
-  </div>
-</div>
+        <ng-template #noRecent>
+          <div class="empty">Henüz işlem yok.</div>
+        </ng-template>
+      </div>
+    </section>
+
+    <!--  Hesap Detay Modal -->
+    <div class="vb-backdrop" *ngIf="detailOpen()" (click)="closeDetail()"></div>
+    <div class="vb-modal" *ngIf="detailOpen()" role="dialog" aria-label="Hesap Detayları">
+      <h3>Hesap Detayları</h3>
+      <ng-container *ngIf="vbDetail() as d; else loadingTpl">
+        <p><strong>Para Birimi:</strong> {{ d.paraBirimi || '-' }}</p>
+        <p><strong>Son İşlem Tarihi:</strong> {{ d.sonIslemTarihi ? (d.sonIslemTarihi | date:'yyyy-MM-dd HH:mm:ss') : '-' }}</p>
+        <p><strong>Hesap Durumu:</strong> {{ mapStatus(d.hesapDurumu) }}</p>
+        <p><strong>Açılış Tarihi:</strong> {{ d.acilisTarihi ? (d.acilisTarihi | date:'yyyy-MM-dd') : '-' }}</p>
+        <p><strong>IBAN:</strong> {{ d.iban || '-' }}</p>
+        <p><strong>Müşteri No:</strong> {{ d.musteriNo || '-' }}</p>
+        <p><strong>Bakiye:</strong> {{ d.bakiye | number:'1.2-2' }} TRY</p>
+        <p><strong>Hesap Türü:</strong> {{ mapAccountType(d.hesapTuru) }}</p>
+        <p><strong>Şube Kodu:</strong> {{ d.subeKodu || '-' }}</p>
+        <p><strong>Hesap No:</strong> {{ d.hesapNo || '-' }}</p>
+      </ng-container>
+      <ng-template #loadingTpl>
+        <div class="vb-row">Yükleniyor…</div>
+      </ng-template>
+      <div class="vb-actions">
+        <button class="vb-btn" (click)="closeDetail()">Close</button>
+      </div>
+    </div>
+
+    <!-- 🔸 Hesap Hareketleri Modal -->
+    <div class="vb-backdrop" *ngIf="txOpen()" (click)="closeTx()"></div>
+    <div class="vb-modal tx-modal" *ngIf="txOpen()" role="dialog" aria-label="Hesap Hareketleri">
+      <h3>Hesap Hareketleri</h3>
+
+      <div class="tx-toolbar">
+        <div class="tx-quick">
+          <button class="pill" (click)="setTxRange7g()">Son 7 Gün</button>
+          <button class="pill" (click)="setTxRange1a()">Son 1 Ay</button>
+          <button class="pill" (click)="setTxRange3a()">Son 3 Ay</button>
+          <button class="pill" (click)="setTxRange6a()">Son 6 Ay</button>
+          <button class="pill" (click)="setTxRange1y()">Son 1 Yıl</button>
+          <button class="pill" (click)="setTxRange2y()">Son 2 Yıl</button>
+        </div>
+
+        <div class="tx-range">
+          <label>Başlangıç</label>
+          <input type="date" [value]="txFrom()" (change)="onTxFromChange($any($event.target).value)">
+          <label>Bitiş</label>
+          <input type="date" [value]="txTo()" (change)="onTxToChange($any($event.target).value)">
+          <button class="pill warn" (click)="reloadTx()">Yükle</button>
+        </div>
+      </div>
+
+      <div class="tx-body">
+        <div class="tx-loading" *ngIf="txLoading()">Yükleniyor…</div>
+        <div class="tx-error" *ngIf="!txLoading() && txError()">{{ txError() }}</div>
+
+        <ng-container *ngIf="!txLoading() && !txError()">
+          <div *ngIf="txItems()?.length === 0" class="empty">Kayıt bulunamadı.</div>
+
+          <div *ngFor="let t of txItems(); let i = index; trackBy: trackByIndex" class="tx-item">
+            <button class="tx-head" (click)="toggleTx(t.transactionId || ('idx-' + i))">
+              <span class="tx-date">{{ t.transactionDate | date:'yyyy-MM-dd HH:mm:ss' }}</span>
+              <span class="tx-name">{{ t.transactionName || '-' }}</span>
+              <span class="tx-amount">
+                {{ t.amount | number:'1.2-2' }} {{ t.currency || 'TRY' }}
+                <span class="tx-caret">▼</span>
+              </span>
+            </button>
+
+            <div class="tx-detail" *ngIf="isExpanded(t.transactionId || ('idx-' + i))">
+              <p><strong>İşlem Tarihi:</strong> {{ t.transactionDate | date:'yyyy-MM-dd HH:mm:ss' }}</p>
+              <p><strong>Açıklama:</strong> {{ t.description || '-' }}</p>
+              <p><strong>Tutar:</strong> {{ t.amount | number:'1.2-2' }} {{ t.currency || 'TRY' }}</p>
+              <p><strong>İşlem Kodu:</strong> {{ t.transactionCode || '-' }}</p>
+              <p><strong>Bakiye:</strong> {{ t.balance | number:'1.2-2' }} {{ t.currency || 'TRY' }}</p>
+              <p><strong>İşlem Adı:</strong> {{ t.transactionName || '-' }}</p>
+              <p><strong>İşlem ID:</strong> {{ t.transactionId || ('idx-' + i) }}</p>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="vb-actions">
+        <button class="vb-btn" (click)="closeTx()">Close</button>
+      </div>
+    </div>
+
+    <!-- MyBank: Hesap Ekle -->
+    <div class="vb-backdrop" *ngIf="addAccOpen()" (click)="closeAddMyAccount()"></div>
+    <div class="vb-modal" *ngIf="addAccOpen()" role="dialog" aria-label="Hesap Ekle">
+      <h3>Yeni MyBank Hesabı</h3>
+
+      <div class="vb-row">
+        <strong>Hesap Adı</strong>
+        <input type="text"
+              [ngModel]="addForm().name"
+              (ngModelChange)="setAddName($event)"
+              placeholder="Örn: Dolar Birikim" />
+      </div>
+
+      <div class="vb-row">
+        <strong>Para Birimi</strong>
+        <select [ngModel]="addForm().currency"
+                (ngModelChange)="setAddCurrency($event)">
+          <option value="TRY">TRY (₺)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="XAU">Altın (XAU)</option>
+        </select>
+      </div>
+
+      <!-- Bilgilendirme -->
+      <div class="vb-row" style="color:#444">
+        IBAN veritabanında otomatik oluşturulacaktır.<br>
+        Başlangıç bakiye: <strong>0</strong>
+      </div>
+
+      <!-- Hata (genel) -->
+      <div class="vb-row" *ngIf="addError()" style="color:#b00020">
+        {{ addError() }}
+      </div>
+
+      <div class="vb-actions">
+        <button class="vb-btn" (click)="closeAddMyAccount()">Vazgeç</button>
+        <button class="pill" (click)="submitAddMyAccount()">Kaydet</button>
+      </div>
+    </div>

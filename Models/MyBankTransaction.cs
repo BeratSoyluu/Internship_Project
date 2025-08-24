@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -8,14 +9,16 @@ namespace Staj_Proje_1.Models
         [Key]
         public long Id { get; set; }
 
+        // ----------------- İlişki / FK -----------------
         [Required]
         public int MyBankAccountId { get; set; }
 
         [ForeignKey(nameof(MyBankAccountId))]
         public MyBankAccount Account { get; set; } = null!;
 
+        // ----------------- İçerik -----------------
         [Required]
-        public DateTime TransactionDate { get; set; } // bankadan gelen tarih
+        public DateTime TransactionDate { get; set; } // bankadan gelen tarih (UTC önerilir)
 
         [Required, StringLength(3)]
         public string Currency { get; set; } = "TRY";

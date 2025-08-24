@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Staj_Proje_1.Models;
+using Staj_Proje_1.Models.OpenBanking;
 
 namespace Staj_Proje_1.Data
 {
@@ -41,7 +42,7 @@ namespace Staj_Proje_1.Data
                 e.HasKey(x => x.Id);
 
                 e.Property(x => x.Iban).IsRequired().HasMaxLength(34);
-                e.Property(x => x.AccountNumber).IsRequired().HasMaxLength(20);
+                e.Property(x => x.AccountNumber).IsRequired().HasMaxLength(32);
                 e.Property(x => x.PhoneNumber).IsRequired().HasMaxLength(20);
                 e.Property(x => x.AccountName).HasMaxLength(100);
                 e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
@@ -49,9 +50,10 @@ namespace Staj_Proje_1.Data
                 e.HasIndex(x => x.Iban).IsUnique();
                 e.HasIndex(x => x.AccountNumber);
 
-                // 🔹 İLİŞKİ: hesap sahibi kullanıcı
+                e.Property(x => x.Balance).HasPrecision(18, 2);
+
                 e.HasOne(x => x.OwnerUser)
-                 .WithMany() // istersen ApplicationUser içine ICollection<MyBankAccount> Accounts ekleyip .WithMany(u=>u.Accounts) yapabilirsin
+                 .WithMany()
                  .HasForeignKey(x => x.OwnerUserId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
@@ -70,6 +72,7 @@ namespace Staj_Proje_1.Data
                 e.Property(x => x.Amount).HasPrecision(18, 2);
                 e.Property(x => x.BalanceAfter).HasPrecision(18, 2);
 
+                // ❗ Hata kaynağı: Date değil TransactionDate olacak
                 e.HasIndex(x => new { x.MyBankAccountId, x.TransactionDate });
                 e.HasIndex(x => new { x.MyBankAccountId, x.ExternalId });
 
@@ -93,6 +96,7 @@ namespace Staj_Proje_1.Data
                 e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
 
                 e.HasIndex(x => x.FromAccountId);
+                // ❗ Hata kaynağı: CreatedAt yerine modelde RequestedAt var
                 e.HasIndex(x => x.RequestedAt);
                 e.HasIndex(x => x.BankReference);
 

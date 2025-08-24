@@ -2,5 +2,9 @@
   "devDependencies": {
     "@angular/build": "^20.1.6",
     "@angular/cli": "^20.1.6"
+  },
+  "dependencies": {
+    "@angular/cdk": "^20.2.0",
+    "@angular/material": "^20.2.0"
   }
 }

@@ -1,17 +1,31 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { OpenBankingService } from '../../core/services/open-banking.service';
+import { OpenBankingService, RecentTxDto } from '../../core/services/open-banking.service';
 import { VakifAccountRow } from '../../features/vakifbank/models/vakif-account-row';
 import { AuthService } from '../../services/auth.service';
-import { BankDto, BankCode, AccountDto, TransactionDto } from '../../core/models/open-banking.models';
+import {
+  BankDto,
+  BankCode,
+  AccountDto,
+  TransactionDto,
+  CurrencyCode,
+  CreateMyBankAccountDto,
+} from '../../core/models/open-banking.models';
 import { VbAccountDetail } from '../../features/vakifbank/models/vb-account-detail.model';
+import { VbTransaction } from '../../features/vakifbank/models/vb-transaction.model';
+
+type AddForm = {
+  name: string;
+  currency: CurrencyCode;
+};
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, DatePipe, DecimalPipe],
+  imports: [CommonModule, FormsModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css'],
 })
@@ -24,13 +38,44 @@ export class DashboardComponent implements OnInit {
   selectedBank = signal<BankCode | null>(null);
   accounts = signal<AccountDto[]>([]);
   vakifAccounts = signal<VakifAccountRow[]>([]);
+
+  // VakıfBank için eski TransactionDto listesi
   recent = signal<TransactionDto[]>([]);
 
-  // Modal state
+  // ✅ MyBank için özel “recent” listesi
+  myRecent = signal<RecentTxDto[]>([]);
+  myRecentTotal = signal(0);
+
+  // =========================
+  // Detay Modali (Vakıf)
+  // =========================
   detailOpen = signal(false);
   vbDetail = signal<VbAccountDetail | null>(null);
 
+  // =========================
+  // Hareketler Modali (Vakıf)
+  // =========================
+  txOpen = signal(false);
+  txLoading = signal(false);
+  txError = signal<string | null>(null);
+  txItems = signal<VbTransaction[]>([]);
+  txAccNo = signal<string>('');
+  txFrom = signal<string>(''); // 'YYYY-MM-DD'
+  txTo = signal<string>('');   // 'YYYY-MM-DD'
+  private txExpanded = signal<Record<string, boolean>>({});
+
+  // =========================
+  // Banka Kodları
+  // =========================
   vakifMi = computed(() => this.normalizeCode(this.selectedBank()) === 'vakif');
+  mybankMi = computed(() => this.normalizeCode(this.selectedBank()) === 'mybank');
+
+  public isMyBank(code: BankCode | string | number): boolean {
+    return this.normalizeCode(code) === 'mybank';
+  }
+  public isVakif(code: BankCode | string | number): boolean {
+    return this.normalizeCode(code) === 'vakif';
+  }
 
   private normalizeCode(code: any): string {
     if (code === 0 || String(code).toLowerCase() === 'vakif') return 'vakif';
@@ -71,23 +116,39 @@ export class DashboardComponent implements OnInit {
     this.accounts.set([]);
     this.vakifAccounts.set([]);
     this.recent.set([]);
+    this.myRecent.set([]);
+    this.myRecentTotal.set(0);
 
     if (this.normalizeCode(code) === 'vakif') {
       this.api.getVakifAccountList().subscribe({
         next: list => this.vakifAccounts.set(list ?? []),
         error: _ => this.vakifAccounts.set([]),
       });
-    } else {
+
+      // VakıfBank tarafı: eski endpoint
+      this.api.getRecentTransactions(code, 5).subscribe({
+        next: tx => this.recent.set(tx ?? []),
+        error: _ => this.recent.set([]),
+      });
+    }
+    else if (this.normalizeCode(code) === 'mybank') {
       this.api.getAccounts(code).subscribe({
         next: list => this.accounts.set(list ?? []),
         error: _ => this.accounts.set([]),
       });
-    }
 
-    this.api.getRecentTransactions(code, 5).subscribe({
-      next: tx => this.recent.set(tx ?? []),
-      error: _ => this.recent.set([]),
-    });
+      // ✅ MyBank tarafı: yeni endpoint
+      this.api.getMyBankRecent(5, 0).subscribe({
+        next: res => {
+          this.myRecent.set(res.items ?? []);
+          this.myRecentTotal.set(res.total ?? 0);
+        },
+        error: _ => {
+          this.myRecent.set([]);
+          this.myRecentTotal.set(0);
+        }
+      });
+    }
   }
 
   loadBanks() {
@@ -107,59 +168,214 @@ export class DashboardComponent implements OnInit {
 
   selectBank(code: BankCode) { this.loadForBank(code); }
 
+  // ✅ Üstteki “+ Banka Ekle” butonu burada
   openAddBank() {
     const bank = (prompt('Hangi banka eklensin? (vakif / mybank)') || '').toLowerCase().trim();
     if (bank !== 'vakif' && bank !== 'mybank') return;
-    this.api.linkNewBank(bank as BankCode).subscribe({ next: () => this.loadBanks() });
+
+    this.api.linkNewBank(bank as BankCode).subscribe({
+      next: () => this.loadBanks(),
+      error: (err) => console.error('Banka eklenemedi', err)
+    });
   }
 
-  // DETAY MODALI — normalize edilmiş servisi kullan
+  // =========================
+  // DETAY MODALI
+  // =========================
   openVbDetails(acc: VakifAccountRow) {
-  this.vbDetail.set(null);
-  this.detailOpen.set(true);
+    this.vbDetail.set(null);
+    this.detailOpen.set(true);
 
-  this.api.getVakifAccountDetailsNormalized(acc.accountNumber).subscribe({
-    next: (d) => {
-      const fallbackType = Number(acc.accountType);
-      const merged: VbAccountDetail = {
-        ...d,
-        // boş/0 ise satırdan doldur
-        paraBirimi:     d.paraBirimi || acc.currency,
-        sonIslemTarihi: d.sonIslemTarihi || acc.lastTransactionDate,
-        iban:           d.iban || acc.iban,
-        bakiye:         d.bakiye && d.bakiye !== 0 ? d.bakiye : (acc.balance ?? 0),
-        hesapTuru:      (d.hesapTuru && [1,2,3,4].includes(+d.hesapTuru as any))
-                         ? d.hesapTuru
-                         : (([1,2,3,4].includes(fallbackType as any) ? fallbackType : 2) as 1|2|3|4),
-        hesapNo:        d.hesapNo || acc.accountNumber,
-      };
-      this.vbDetail.set(merged);
-    },
-    error: () => {
-      this.vbDetail.set({
-        paraBirimi: acc.currency || 'TL',
-        sonIslemTarihi: acc.lastTransactionDate || '',
-        hesapDurumu: 'A',
-        acilisTarihi: '',
-        iban: acc.iban || '',
-        musteriNo: '',
-        bakiye: acc.balance ?? 0,
-        hesapTuru: ([1,2,3,4].includes(Number(acc.accountType) as any) ? Number(acc.accountType) : 2) as 1|2|3|4,
-        subeKodu: '',
-        hesapNo: acc.accountNumber,
-      });
-    }
-  });
-}
-
-
-
+    this.api.getVakifAccountDetailsNormalized(acc.accountNumber).subscribe({
+      next: (d) => {
+        const fallbackType = Number(acc.accountType);
+        const merged: VbAccountDetail = {
+          ...d,
+          paraBirimi:     d.paraBirimi || acc.currency,
+          sonIslemTarihi: d.sonIslemTarihi || acc.lastTransactionDate,
+          iban:           d.iban || acc.iban,
+          bakiye:         d.bakiye && d.bakiye !== 0 ? d.bakiye : (acc.balance ?? 0),
+          hesapTuru:      (d.hesapTuru && [1,2,3,4].includes(+d.hesapTuru as any))
+                           ? d.hesapTuru
+                           : (([1,2,3,4].includes(fallbackType as any) ? fallbackType : 2) as 1|2|3|4),
+          hesapNo:        d.hesapNo || acc.accountNumber,
+        };
+        this.vbDetail.set(merged);
+      },
+      error: () => {
+        this.vbDetail.set({
+          paraBirimi: acc.currency || 'TL',
+          sonIslemTarihi: acc.lastTransactionDate || '',
+          hesapDurumu: 'A',
+          acilisTarihi: '',
+          iban: acc.iban || '',
+          musteriNo: '',
+          bakiye: acc.balance ?? 0,
+          hesapTuru: ([1,2,3,4].includes(Number(acc.accountType) as any) ? Number(acc.accountType) : 2) as 1|2|3|4,
+          subeKodu: '',
+          hesapNo: acc.accountNumber,
+        });
+      }
+    });
+  }
   closeDetail() { this.detailOpen.set(false); }
 
-  openVbTransactions(acc: VakifAccountRow) {
-    this.router.navigate(['/vakifbank/accounts', acc.accountNumber, 'transactions']);
+  // =========================
+  // HAREKETLER MODALI
+  // =========================
+  private ymd(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
+  private setQuickRange(preset: '7g'|'1a'|'3a'|'6a'|'1y'|'2y') {
+    const now = new Date();
+    const from = new Date(now);
+
+    switch (preset) {
+      case '7g': from.setDate(from.getDate() - 7); break;
+      case '1a': from.setMonth(from.getMonth() - 1); break;
+      case '3a': from.setMonth(from.getMonth() - 3); break;
+      case '6a': from.setMonth(from.getMonth() - 6); break;
+      case '1y': from.setFullYear(from.getFullYear() - 1); break;
+      case '2y': from.setFullYear(from.getFullYear() - 2); break;
+    }
+
+    this.txFrom.set(this.ymd(from));
+    this.txTo.set(this.ymd(now));
+  }
+
+  private loadTransactions() {
+    const accNo = this.txAccNo();
+    if (!accNo) return;
+
+    this.txLoading.set(true);
+    this.txError.set(null);
+    this.txItems.set([]);
+    this.txExpanded.set({});
+
+    this.api.getVakifAccountTransactionsNormalized(accNo, {
+      from: this.txFrom(),
+      to:   this.txTo(),
+      take: 100
+    }).subscribe({
+      next: (rows) => {
+        this.txItems.set(rows ?? []);
+        this.txLoading.set(false);
+      },
+      error: (err) => {
+        console.error('[transactions]', err);
+        this.txError.set('Hesap hareketleri alınamadı');
+        this.txLoading.set(false);
+      },
+    });
+  }
+
+  openVbTransactions(acc: VakifAccountRow) {
+    this.txAccNo.set(acc.accountNumber);
+    this.setQuickRange('1a');
+    this.txOpen.set(true);
+    this.loadTransactions();
+  }
+  closeTx() { this.txOpen.set(false); }
+
+  setTxRange7g() { this.setQuickRange('7g'); this.loadTransactions(); }
+  setTxRange1a() { this.setQuickRange('1a'); this.loadTransactions(); }
+  setTxRange3a() { this.setQuickRange('3a'); this.loadTransactions(); }
+  setTxRange6a() { this.setQuickRange('6a'); this.loadTransactions(); }
+  setTxRange1y() { this.setQuickRange('1y'); this.loadTransactions(); }
+  setTxRange2y() { this.setQuickRange('2y'); this.loadTransactions(); }
+  onTxFromChange(v: string) { this.txFrom.set(v); }
+  onTxToChange(v: string)   { this.txTo.set(v); }
+  reloadTx() { this.loadTransactions(); }
+  toggleTx(id: string) {
+    const map = { ...this.txExpanded() };
+    map[id] = !map[id];
+    this.txExpanded.set(map);
+  }
+  isExpanded(id: string): boolean { return !!this.txExpanded()[id]; }
+
+  // =========================
+  // Para Transferi (MyBank)
+  // =========================
+  transfer(fromAccountId?: string) {
+    if (!this.mybankMi()) {
+      const my = this.banks().find(b => this.normalizeCode(b.code) === 'mybank' && b.connected)?.code;
+      if (my) this.selectBank(my);
+    }
+    this.router.navigate(['/mybank/transfers'], {
+      queryParams: { from: fromAccountId || 'mybank' }
+    });
+  }
+
+  // =========================
+  // MyBank — Hesap Kartı Seçimi
+  // =========================
+  private mySelectedIban = signal<string | null>(null);
+  isMyAccountSelected(iban?: string | null) { return !!iban && this.mySelectedIban() === iban; }
+  selectMyAccount(acc: AccountDto) { this.mySelectedIban.set(acc?.iban ?? null); }
+
+  // =========================
+  // MyBank — Hesap Ekle
+  // =========================
+  addAccOpen = signal(false);
+  addError = signal<string | null>(null);
+  addForm = signal<AddForm>({ name: '', currency: 'TRY' });
+
+  openAddMyAccount() {
+    this.addError.set(null);
+    this.addForm.set({ name: '', currency: 'TRY' });
+    this.addAccOpen.set(true);
+  }
+  closeAddMyAccount() { this.addAccOpen.set(false); }
+
+  setAddName(v: string)     { this.addForm.update(f => ({ ...f, name: v })); }
+  setAddCurrency(v: string) { this.addForm.update(f => ({ ...f, currency: v as CurrencyCode })); }
+
+  submitAddMyAccount() {
+    const form = this.addForm();
+    this.addError.set(null);
+
+    const name = (form.name || '').trim();
+    if (!name) { this.addError.set('Hesap adı giriniz.'); return; }
+    if (!form.currency) { this.addError.set('Para birimi seçiniz.'); return; }
+
+    const payload: CreateMyBankAccountDto = {
+      name,
+      currency: form.currency,
+    };
+
+    this.api.createMyBankAccount(payload).subscribe({
+      next: (created) => {
+        const bank = this.selectedBank();
+        if (bank != null) {
+          this.api.getAccounts(bank).subscribe({
+            next: list => this.accounts.set(list ?? []),
+            error: _ => this.accounts.set([]),
+          });
+        }
+        this.mySelectedIban.set(created.iban);
+        this.addForm.set({ name: '', currency: 'TRY' });
+        this.addAccOpen.set(false);
+      },
+      error: () => this.addError.set('Hesap eklenemedi. Lütfen tekrar deneyin.')
+    });
+  }
+
+  currencyIcon(code?: string | null): string {
+    const c = (code || 'TRY').toUpperCase();
+    if (c === 'USD') return '$';
+    if (c === 'EUR') return '€';
+    if (c === 'GBP') return '£';
+    if (c === 'XAU') return '🥇';
+    return '₺';
+  }
+
+  // =========================
+  // Genel
+  // =========================
   logout() { this.auth.logout(); }
   trackByIndex(i: number) { return i; }
 }

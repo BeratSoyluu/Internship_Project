@@ -1,97 +1,453 @@
-/* ===== ÜST KISIM (başlık + kart alanı) ===== */
-.page-hero{
+/* ===================================================== */
+/*                  ÜST KISIM (başlık + kartlar)         */
+/* ===================================================== */
+
+.page-hero {
   background: linear-gradient(180deg, #f6f7fb 0%, #f7f8fc 60%, rgba(247,248,252,0) 100%);
   padding: 12px 0 16px;
   margin: 0 0 12px;
   border-bottom: 1px solid #eef0f4;
 }
-.hero-inner{ max-width:1160px; margin:0 auto; padding:0 12px; position:relative; }
-.hero-title{ margin:4px 0 12px; font-size:34px; font-weight:800; letter-spacing:.2px; }
+.hero-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 12px;
+  position: relative;
+}
+.hero-title {
+  margin: 4px 0 12px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
 
 /* sağ üst işlemler */
-.hero-actions{
-  position:absolute; top:6px; right:12px; display:flex; gap:8px;
+.hero-actions {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
 }
-.btn{ padding:6px 10px; border-radius:10px; font-size:12px; cursor:pointer; border:1px solid transparent; }
-.btn.ghost{ background:#f7f7f7; border-color:#ddd; }
-.btn.danger{ background:#ffebeb; border-color:#f3b0b0; }
-
-/* banka kart ızgarası */
-.banks{ display:grid; grid-template-columns:repeat(2,minmax(260px,1fr)); gap:16px; }
-
-/* banka kartı (kompakt) */
-.bank-card{
-  display:flex; align-items:center; justify-content:space-between; gap:8px;
-  padding:10px 14px; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-  box-shadow:0 3px 10px rgba(0,0,0,.06);
-  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-  cursor:pointer;
+.btn {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
 }
-.bank-card:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
-.bank-card.active{ border-color:#2f5dc6; box-shadow:0 8px 20px rgba(47,93,198,.16); }
-.bank-card .left .logo{ font-size:14px; font-weight:600; color:#111827; margin-bottom:4px; }
-.bank-card .left .balance{ font-size:15px; font-weight:800; color:#111; }
-.bank-card .right .mini{ font-size:11px; color:#6b7280; white-space:nowrap; }
+.btn.ghost { background: #f7f7f7; border-color: #ddd; }
+.btn.danger { background: #ffebeb; border-color: #f3b0b0; }
+
+/* banka kart grid */
+.banks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* banka kart */
+.bank-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,.06);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  cursor: pointer;
+}
+.bank-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+.bank-card.active { border-color: #2f5dc6; box-shadow: 0 8px 20px rgba(47,93,198,.16); }
+
+/* HTML’de .row kullanıldığı için genel tipografi ayarı */
+.bank-card .logo { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+.bank-card .balance { font-size: 15px; font-weight: 800; color: #111; }
+
+/* ───────── MyBank özel görünüm (kart) ───────── */
+.bank-card.mybank {
+  background: linear-gradient(135deg, #e8f0ff 0%, #d9f5ff 55%, #e6ffef 100%);
+  border-color: #b6d5ff;
+  box-shadow: 0 6px 18px rgba(34,197,94,.12), 0 3px 10px rgba(59,130,246,.10);
+}
+.bank-card.mybank .logo { color: #0b3a7e; }
+.bank-card.mybank .balance { color: #0f3b2d; }
+
+/* bağlanma durumu */
+.status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #6b7280;
+}
+.status .dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  background: #22c55e; box-shadow: 0 0 8px #22c55e;
+}
+
+/* kart içi aksiyonlar */
+.card-actions { display: flex; gap: 8px; }
+
+/* Transfer butonu */
+.btn.transfer {
+  border-radius: 12px;
+  border: 0;
+  padding: 8px 12px;
+  font-weight: 700;
+  color: #fff;
+  background: radial-gradient(120% 120% at 0% 0%, #34d399 0%, #10b981 45%, #059669 100%);
+  box-shadow: 0 8px 18px rgba(34,197,94,.35);
+  transition: transform .1s ease, filter .12s ease, box-shadow .12s ease;
+}
+.btn.transfer:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn.transfer:active { transform: translateY(0); }
+.btn-icon { font-weight: 900; margin-right: 6px; }
 
 /* mobil uyum */
-@media (max-width:720px){
-  .hero-title{ font-size:28px; }
-  .hero-actions{ position:static; margin-bottom:8px; }
-  .banks{ grid-template-columns:1fr; }
+@media (max-width: 720px) {
+  .hero-title { font-size: 28px; }
+  .hero-actions { position: static; margin-bottom: 8px; }
+  .banks { grid-template-columns: 1fr; }
 }
 
-/* ===== VAKIFBANK TABLO ===== */
-.table-scroll{ overflow:auto; border-radius:12px; box-shadow:0 1px 8px rgba(0,0,0,.06); }
-.vb-table{ width:100%; border-collapse:separate; border-spacing:0; min-width:960px; }
-.vb-table thead th{
-  position:sticky; top:0; z-index:1;
-  background:#e5e5e5; padding:10px 12px; text-align:left; font-weight:700; border-right:1px solid #d9d9d9;
-}
-.vb-table thead th:first-child{ border-top-left-radius:10px; }
-.vb-table thead th:last-child{ border-top-right-radius:10px; border-right:none; }
-.vb-table tbody td{ padding:10px 12px; border-top:1px solid #eee; vertical-align:middle; }
-.mono{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
-.num{ text-align:right; font-variant-numeric:tabular-nums; }
-.actions{ display:flex; gap:8px; }
+/* ===================================================== */
+/*                  VAKIFBANK TABLO                      */
+/* ===================================================== */
 
-/* VakıfBank turuncu “pill”ler */
-.pill{
-  border:none; padding:6px 12px; border-radius:16px; cursor:pointer;
-  background:linear-gradient(180deg,#ffd08a 0%, #ffbd73 100%);
-  transition:filter .12s ease, transform .04s ease;
+.table-scroll {
+  overflow: auto;
+  border-radius: 12px;
+  box-shadow: 0 1px 8px rgba(0,0,0,.06);
 }
-.pill.warn{
-  background:linear-gradient(180deg,#ffb36b 0%, #ff9d4d 100%);
+.vb-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 960px;
 }
-.pill:hover{ filter:brightness(0.96); }
-.pill:active{ transform:scale(0.98); }
-.pill:focus-visible{ outline:2px solid #2f5dc6; outline-offset:1px; }
+.vb-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: #e5e5e5; padding: 10px 12px;
+  text-align: left; font-weight: 700;
+  border-right: 1px solid #d9d9d9;
+}
+.vb-table thead th:first-child { border-top-left-radius: 10px; }
+.vb-table thead th:last-child { border-top-right-radius: 10px; border-right: none; }
+.vb-table tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid #eee;
+  vertical-align: middle;
+}
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.actions { display: flex; gap: 8px; }
 
-.empty{ padding:12px; color:#777; }
+/* turuncu pill butonlar */
+.pill {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd08a 0%, #ffbd73 100%);
+  transition: filter .12s ease, transform .04s ease;
+}
+.pill.warn { background: linear-gradient(180deg, #ffb36b 0%, #ff9d4d 100%); }
+.pill:hover { filter: brightness(0.96); }
+.pill:active { transform: scale(0.98); }
+.pill:focus-visible { outline: 2px solid #2f5dc6; outline-offset: 1px; }
 
-/* ===== MODAL (Hesap Detayları) ===== */
-.vb-backdrop{
-  position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:1000;
-  backdrop-filter:saturate(110%) blur(1px);
-}
-.vb-modal{
-  position:fixed; z-index:1001; top:50%; left:50%; transform:translate(-50%,-50%) scale(1);
-  background:#fff; width:min(560px,92vw); max-height:84vh; overflow:auto;
-  padding:20px 22px; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.3);
-  animation:vb-pop .14s ease-out;
-}
-@keyframes vb-pop{ from{ transform:translate(-50%,-50%) scale(.96); opacity:.6; } to{ transform:translate(-50%,-50%) scale(1); opacity:1; } }
-.vb-modal h3{ margin:0 0 12px 0; font-size:20px; font-weight:700; }
-.vb-modal .vb-row{ margin:8px 0; }
-.vb-modal .vb-row strong{ display:inline-block; min-width:140px; color:#111; }
-.vb-modal .vb-actions{ display:flex; justify-content:flex-end; margin-top:16px; }
-.vb-modal .vb-btn{
-  background:#f1f1f1; border:1px solid #e7e7e7; padding:8px 14px; border-radius:8px; cursor:pointer;
-}
-.vb-modal .vb-btn:hover{ filter:brightness(.96); }
+.empty { padding: 12px; color: #777; }
 
-/* Küçük ekran uyumu */
-@media (max-width:480px){
-  .vb-modal{ width:94vw; padding:16px; }
-  .vb-modal .vb-row strong{ min-width:120px; }
+/* ===================================================== */
+/*                  HESAP DETAY MODAL                    */
+/* ===================================================== */
+
+.vb-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.35); z-index: 1000;
+  backdrop-filter: saturate(110%) blur(1px);
+}
+.vb-modal {
+  position: fixed; z-index: 1001;
+  top: 50%; left: 50%; transform: translate(-50%,-50%) scale(1);
+  background: #fff; width: min(560px,92vw);
+  max-height: 84vh; overflow: auto;
+  padding: 20px 22px;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.3);
+  animation: vb-pop .14s ease-out;
+}
+@keyframes vb-pop {
+  from { transform: translate(-50%,-50%) scale(.96); opacity: .6; }
+  to   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+}
+.vb-modal h3 { margin: 0 0 12px 0; font-size: 20px; font-weight: 700; }
+.vb-modal .vb-row { margin: 8px 0; }
+.vb-modal .vb-row strong { display:inline-block; min-width:140px; color:#111; }
+.vb-modal .vb-actions { display:flex; justify-content:flex-end; margin-top:16px; }
+.vb-modal .vb-btn {
+  background:#f1f1f1; border:1px solid #e7e7e7;
+  padding:8px 14px; border-radius:8px; cursor:pointer;
+}
+.vb-modal .vb-btn:hover { filter:brightness(.96); }
+
+/* küçük ekran uyumu */
+@media (max-width:480px) {
+  .vb-modal { width:94vw; padding:16px; }
+  .vb-modal .vb-row strong { min-width:120px; }
+}
+
+/* ===================================================== */
+/*         HESAP HAREKETLERİ – BÜYÜK MODAL              */
+/* ===================================================== */
+
+.tx-modal {
+  width: min(980px,96vw);
+  max-height: 86vh;
+  overflow: hidden;
+}
+
+/* toolbar */
+.tx-toolbar {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  align-items: center; justify-content: space-between;
+  margin: 4px 0 12px;
+}
+.tx-quick { display: flex; gap: 8px; flex-wrap: wrap; }
+.tx-range { display: flex; gap: 8px; align-items: center; }
+.tx-range label { font-size: 12px; color: #555; }
+.tx-range input[type="date"] {
+  height: 30px; padding: 0 8px;
+  border: 1px solid #e3e3e3; border-radius: 8px;
+  background: #fafafa;
+}
+.tx-range .pill { padding: 6px 10px; }
+
+/* liste gövdesi */
+.tx-body {
+  max-height: 60vh;
+  overflow: auto;
+  padding-right: 6px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* işlem satırı */
+.tx-item {
+  border: 1px solid #f0e1cf;
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.04);
+}
+
+/* başlık satırı */
+.tx-head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(180deg,#ffb36b 0%, #ff9d4d 100%);
+  color: #111;
+  border: none;
+}
+.tx-head .tx-date { font-weight: 600; }
+.tx-head .tx-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-head .tx-amount { font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.tx-head .tx-caret { font-size: 12px; opacity: .9; }
+
+/* detay */
+.tx-detail {
+  padding: 12px 14px;
+  background: #fff;
+  border-top: 1px solid rgba(0,0,0,.06);
+}
+.tx-detail p { margin: 6px 0; }
+
+/* durum mesajları */
+.tx-loading { padding: 12px; color: #555; }
+.tx-error { padding: 12px; color: #b00020; font-weight: 600; }
+
+/* scrollbar */
+.tx-body::-webkit-scrollbar { width: 10px; }
+.tx-body::-webkit-scrollbar-thumb { background: #e2e2e2; border-radius: 8px; }
+.tx-body::-webkit-scrollbar-track { background: transparent; }
+
+/* küçük ekran uyumu */
+@media (max-width:560px) {
+  .tx-head { grid-template-columns: 1fr; }
+  .tx-head .tx-amount { justify-content: flex-start; }
+}
+
+/* ===================================================== */
+/*           MYBANK HESAPLAR + SON İŞLEMLER              */
+/* ===================================================== */
+
+.mybank-accounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+  margin: 20px 0;
+}
+
+.account-card {
+  background: linear-gradient(135deg, #eef7ff 0%, #e8fff6 60%, #f9faff 100%);
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+  transition: transform .15s ease, box-shadow .15s ease, outline-color .15s ease;
+  cursor: pointer;
+}
+.account-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+}
+.account-card.selected {
+  outline: 2px solid #2563eb;
+  box-shadow: 0 10px 26px rgba(37, 99, 235, .18);
+}
+.account-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.account-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0b3a7e;
+  margin-bottom: 6px;
+}
+.account-balance {
+  font-size: 22px;
+  font-weight: 800;
+  color: #047857;
+}
+.account-meta {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+.account-meta .mono { overflow-wrap: anywhere; }
+
+.mybank-recent {
+  margin: 24px 0;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+.mybank-recent-header {
+  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-weight: 700;
+  padding: 12px 18px;
+  font-size: 15px;
+}
+.mybank-tx {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 14px 18px;
+  border-top: 1px solid #f0f0f0;
+  transition: background 0.12s ease;
+}
+.mybank-tx:hover { background: #f9fafb; }
+.mybank-tx-left { display: flex; flex-direction: column; gap: 3px; }
+.mybank-tx-name {
+  font-weight: 600;
+  color: #111827;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mybank-tx-date { font-size: 12px; color: #6b7280; }
+.mybank-tx-amount { font-weight: 700; font-size: 14px; }
+.mybank-tx-amount.positive { color: #059669; }
+.mybank-tx-amount.negative { color: #dc2626; }
+
+@media (max-width: 640px) {
+  .account-card { padding: 14px; }
+  .account-title { font-size: 14px; }
+  .account-balance { font-size: 18px; }
+  .mybank-recent-header { font-size: 13px; }
+  .mybank-tx { grid-template-columns: 1fr; gap: 8px; }
+  .mybank-tx-amount { justify-self: flex-start; }
+}
+
+/* ===================================================== */
+/*  MYBANK: “Hesap Ekle” (+) Kartı ve Modal Form Input   */
+/* ===================================================== */
+
+.account-card.add-card {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 120px;
+  padding: 20px;
+  color: #2563eb;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
+  border: 2px dashed #bfdbfe;
+  box-shadow: 0 4px 14px rgba(59,130,246,.08);
+  user-select: none;
+}
+.account-card.add-card .plus {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: 2px solid currentColor;
+  position: relative;
+}
+.account-card.add-card .plus::before,
+.account-card.add-card .plus::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  background: currentColor;
+}
+.account-card.add-card .plus::before { width: 22px; height: 2px; }
+.account-card.add-card .plus::after  { width: 2px;  height: 22px; }
+.account-card.add-card .add-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  opacity: .9;
+}
+.account-card.add-card:hover {
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+  background: linear-gradient(135deg, #f3f8ff 0%, #e8f1ff 100%);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .14);
+}
+.account-card.add-card:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .12);
+}
+.account-card.add-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Modal’daki input/select görünümü */
+.vb-modal input[type="text"],
+.vb-modal select {
+  height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  width: min(320px, 100%);
+}
+.vb-modal input[type="text"]:focus,
+.vb-modal select:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  background: #fff;
 }
