@@ -328,6 +328,13 @@ export class OpenBankingService {
       { params: { take, skip } as any }
     );
   }
+
+  // -------------------- MyBank: Para Transferi --------------------
+  /** MyBank transfer: isim + IBAN + tutar backend'e gider */
+  createMyBankTransfer(body: TransferCreate) {
+    // Bu endpoint open-banking altında değil; o yüzden absolute path kullandık.
+    return this.http.post<TransferDto>('/api/mybank/transfers', body);
+  }
 }
 
 // DTO arayüzü
@@ -341,4 +348,27 @@ export interface RecentTxDto {
   amount: number;
   balanceAfter?: number;
   currency: string;
+}
+
+// === MyBank transfer DTO'ları ===
+export interface TransferCreate {
+  toIban: string;
+  toName: string;
+  amount: number;
+  description?: string | null;
+}
+
+export interface TransferDto {
+  id: number;
+  fromAccountId: number;
+  fromAccountNumber: string;
+  toIban: string;
+  toName: string;
+  amount: number;
+  currency: string;
+  description?: string | null;
+  status: string;
+  bankReference?: string | null;
+  requestedAt: string;
+  completedAt?: string | null;
 }

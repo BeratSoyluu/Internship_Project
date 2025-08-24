@@ -10,7 +10,9 @@ namespace Staj_Proje_1.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options) { }
 
+        // İsteğe bağlı alternatif DbSet adı (AspNetUsers tablosuna bağlanıyor)
         public DbSet<ApplicationUser>   Kullanicilar       { get; set; } = null!;
+
         public DbSet<MyBankAccount>     MyBankAccounts     { get; set; } = null!;
         public DbSet<MyBankTransaction> MyBankTransactions { get; set; } = null!;
         public DbSet<MyBankTransfer>    MyBankTransfers    { get; set; } = null!;
@@ -64,15 +66,17 @@ namespace Staj_Proje_1.Data
                 e.ToTable("MyBankTransactions");
                 e.HasKey(x => x.Id);
 
+                e.Property(x => x.AccountName).IsRequired().HasMaxLength(120);
+
                 e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
                 e.Property(x => x.Description).HasMaxLength(256);
-                e.Property(x => x.Direction).HasMaxLength(16);
+                e.Property(x => x.Direction).IsRequired().HasMaxLength(4); // "IN"/"OUT"
                 e.Property(x => x.ExternalId).HasMaxLength(64);
 
                 e.Property(x => x.Amount).HasPrecision(18, 2);
                 e.Property(x => x.BalanceAfter).HasPrecision(18, 2);
 
-                // ❗ Hata kaynağı: Date değil TransactionDate olacak
+                // Doğru alan: TransactionDate
                 e.HasIndex(x => new { x.MyBankAccountId, x.TransactionDate });
                 e.HasIndex(x => new { x.MyBankAccountId, x.ExternalId });
 
@@ -96,8 +100,7 @@ namespace Staj_Proje_1.Data
                 e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
 
                 e.HasIndex(x => x.FromAccountId);
-                // ❗ Hata kaynağı: CreatedAt yerine modelde RequestedAt var
-                e.HasIndex(x => x.RequestedAt);
+                e.HasIndex(x => x.RequestedAt);   // doğru alan
                 e.HasIndex(x => x.BankReference);
 
                 e.HasOne(x => x.FromAccount)

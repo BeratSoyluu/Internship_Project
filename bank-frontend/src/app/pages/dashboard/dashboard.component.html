@@ -79,6 +79,11 @@
     <ng-template #otherBanks>
       <h2>Hesaplar</h2>
 
+      <!-- 🔹 MyBank aksiyon çubuğu: Para transferi butonu -->
+      <div class="mybank-actions" *ngIf="accounts()?.length">
+        <button class="pill" (click)="openTransfer()">Para transferi</button>
+      </div>
+
       <!-- Hesaplar varsa: kartlar + “+” kartı -->
       <div class="mybank-accounts" *ngIf="accounts()?.length; else emptyMyBank">
         <div
@@ -277,3 +282,51 @@
         <button class="pill" (click)="submitAddMyAccount()">Kaydet</button>
       </div>
     </div>
+
+    <!-- 🔹 MyBank: Para Transferi Modal (yeni) -->
+    <div class="vb-backdrop" *ngIf="transferOpen()" (click)="closeTransfer()"></div>
+    <div class="vb-modal" *ngIf="transferOpen()" role="dialog" aria-label="Para Transferi">
+      <h3>Para Transferi</h3>
+
+      <div class="vb-row">
+        <strong>Alıcı Adı</strong>
+        <input type="text"
+               [ngModel]="transferForm().toName"
+               (ngModelChange)="setTrName($event)"
+               placeholder="Ali Veli" />
+      </div>
+
+      <div class="vb-row">
+        <strong>Alıcı IBAN</strong>
+        <input type="text"
+               [ngModel]="transferForm().toIban"
+               (ngModelChange)="setTrIban($event)"
+               placeholder="TR____________________" />
+      </div>
+
+      <div class="vb-row">
+        <strong>Tutar (TRY)</strong>
+        <input type="number" step="0.01"
+               [ngModel]="transferForm().amount"
+               (ngModelChange)="setTrAmount($event)" />
+      </div>
+
+      <div class="vb-row">
+        <strong>Açıklama (opsiyonel)</strong>
+        <input type="text"
+               [ngModel]="transferForm().description"
+               (ngModelChange)="setTrDesc($event)" />
+      </div>
+
+      <div class="vb-row" *ngIf="transferError()" style="color:#b00020">
+        {{ transferError() }}
+      </div>
+
+      <div class="vb-actions">
+        <button class="vb-btn" (click)="closeTransfer()">Vazgeç</button>
+        <button class="pill" (click)="submitTransfer()">Gönder</button>
+      </div>
+    </div>
+
+  </div>
+</header>

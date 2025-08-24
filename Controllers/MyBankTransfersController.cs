@@ -5,7 +5,8 @@ using Staj_Proje_1.Models;
 using Staj_Proje_1.Models.Dtos;
 using Staj_Proje_1.Services;
 using System.Security.Claims;
-using Staj_Proje_1.Models.OpenBanking;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Staj_Proje_1.Controllers
 {
@@ -30,12 +31,12 @@ namespace Staj_Proje_1.Controllers
         {
             iban = NormalizeIban(iban);
             if (iban.Length < 15 || iban.Length > 34) return false;
-            if (!System.Text.RegularExpressions.Regex.IsMatch(iban, @"^[A-Z]{2}[0-9A-Z]+$"))
+            if (!Regex.IsMatch(iban, @"^[A-Z]{2}[0-9A-Z]+$"))
                 return false;
 
             // IBAN checksum (mod 97)
             string rearranged = iban[4..] + iban[..4];
-            var sb = new System.Text.StringBuilder(rearranged.Length * 2);
+            var sb = new StringBuilder(rearranged.Length * 2);
             foreach (char c in rearranged)
                 sb.Append(char.IsLetter(c) ? (c - 'A' + 10).ToString() : c);
 
@@ -45,6 +46,58 @@ namespace Staj_Proje_1.Controllers
                 chunk = (chunk * 10 + (ch - '0')) % 97;
 
             return chunk == 1;
+        }
+
+        // ----------------- İsim karşılaştırma yardımcıları -----------------
+        private static string FoldForCompare(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            string s = input.Trim().ToUpperInvariant();
+
+            // TR karakter düzeltmeleri
+            s = s
+                .Replace('İ', 'I')
+                .Replace('I', 'I')
+                .Replace('ı', 'I')
+                .Replace('Ş', 'S').Replace('ş', 'S')
+                .Replace('Ğ', 'G').Replace('ğ', 'G')
+                .Replace('Ü', 'U').Replace('ü', 'U')
+                .Replace('Ö', 'O').Replace('ö', 'O')
+                .Replace('Ç', 'C').Replace('ç', 'C');
+
+            // Harf ve rakam dışını at, boşlukları kaldır
+            var sb = new StringBuilder(s.Length);
+            foreach (var ch in s)
+            {
+                if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+            }
+            return sb.ToString();
+        }
+
+        private static bool NamesMatch(string provided, string expected)
+        {
+            var p = FoldForCompare(provided);
+            var e = FoldForCompare(expected);
+            if (p.Length == 0 || e.Length == 0) return false;
+            if (p == e) return true;
+            // Esnek: biri diğerini içeriyorsa da kabul
+            return p.Contains(e) || e.Contains(p);
+        }
+
+        private static string? ComposeFullName(ApplicationUser user)
+        {
+            // Reflection ile FullName / Ad / Soyad var mı bak
+            var t = user.GetType();
+            string? fromFull = t.GetProperty("FullName")?.GetValue(user)?.ToString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(fromFull)) return fromFull;
+
+            var ad = t.GetProperty("Ad")?.GetValue(user)?.ToString()?.Trim();
+            var soyad = t.GetProperty("Soyad")?.GetValue(user)?.ToString()?.Trim();
+            var composed = $"{ad} {soyad}".Trim();
+            if (!string.IsNullOrWhiteSpace(composed) && composed != "")
+                return composed;
+
+            return user.UserName;
         }
 
         // Aktif kullanıcının varsayılan "gönderen" hesabını seç
@@ -83,6 +136,7 @@ namespace Staj_Proje_1.Controllers
             if (!IsValidIban(iban))
                 return BadRequest(new { message = "Geçersiz IBAN." });
 
+            // Bakiye kontrolü
             ApplicationUser? sender = null;
             if (!string.IsNullOrEmpty(from.OwnerUserId))
             {
@@ -91,11 +145,29 @@ namespace Staj_Proje_1.Controllers
                     return BadRequest(new { message = "Yetersiz bakiye." });
             }
 
+            // IBAN bizim sistemdeki bir MyBank hesabına ait ise isim doğrula
+            string? expectedReceiverName = null;
+            var recvAccByIban = await _db.MyBankAccounts.FirstOrDefaultAsync(a => a.Iban == iban, ct);
+            if (recvAccByIban?.OwnerUserId != null)
+            {
+                var recvUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == recvAccByIban.OwnerUserId, ct);
+                if (recvUser != null)
+                {
+                    expectedReceiverName = ComposeFullName(recvUser);
+                    if (!string.IsNullOrWhiteSpace(expectedReceiverName))
+                    {
+                        var providedName = dto.ToName ?? string.Empty;
+                        if (!NamesMatch(providedName, expectedReceiverName))
+                            return BadRequest(new { message = "Alıcı adı IBAN ile uyuşmuyor." });
+                    }
+                }
+            }
+
             var entity = new MyBankTransfer
             {
                 FromAccountId = from.Id,
                 ToIban        = iban,
-                ToName        = dto.ToName.Trim(),
+                ToName        = (dto.ToName ?? string.Empty).Trim(),
                 Amount        = dto.Amount,
                 Currency      = "TRY",
                 Description   = null,
@@ -109,11 +181,15 @@ namespace Staj_Proje_1.Controllers
             try
             {
                 var token = await _bank.GetTokenAsync(ct);
+                var toNameSafe = string.IsNullOrWhiteSpace(entity.ToName)
+                    ? (expectedReceiverName ?? string.Empty)
+                    : entity.ToName;
+
                 var res = await _bank.SendTransferAsync(
                     token,
                     from.AccountNumber,
                     iban,
-                    dto.ToName.Trim(),
+                    toNameSafe,
                     dto.Amount,
                     "TRY",
                     null,
@@ -133,11 +209,10 @@ namespace Staj_Proje_1.Controllers
                         _db.Users.Update(sender);
                     }
 
-                    var recvAcc = await _db.MyBankAccounts
-                        .FirstOrDefaultAsync(a => a.Iban == entity.ToIban, ct);
-                    if (recvAcc?.OwnerUserId != null)
+                    // Alıcı sistemdeyse onun bakiyesini de arttır
+                    if (recvAccByIban?.OwnerUserId != null)
                     {
-                        var receiver = await _db.Users.FirstOrDefaultAsync(u => u.Id == recvAcc.OwnerUserId, ct);
+                        var receiver = await _db.Users.FirstOrDefaultAsync(u => u.Id == recvAccByIban.OwnerUserId, ct);
                         if (receiver != null)
                         {
                             receiver.Bakiye += entity.Amount;
@@ -261,9 +336,28 @@ namespace Staj_Proje_1.Controllers
             if (t.Status == TransferStatus.Completed)
                 return BadRequest(new { message = "Transfer zaten gönderilmiş." });
 
+            // IBAN bizim sistemdeyse tekrar da isim doğrulaması yap
+            string? expectedReceiverName = null;
+            var recvAccByIban = await _db.MyBankAccounts.FirstOrDefaultAsync(a => a.Iban == t.ToIban, ct);
+            if (recvAccByIban?.OwnerUserId != null)
+            {
+                var recvUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == recvAccByIban.OwnerUserId, ct);
+                if (recvUser != null)
+                {
+                    expectedReceiverName = ComposeFullName(recvUser);
+                    if (!string.IsNullOrWhiteSpace(expectedReceiverName))
+                    {
+                        var providedName = t.ToName ?? string.Empty;
+                        if (!NamesMatch(providedName, expectedReceiverName))
+                            return BadRequest(new { message = "Alıcı adı IBAN ile uyuşmuyor." });
+                    }
+                }
+            }
+
             using var tx = await _db.Database.BeginTransactionAsync(ct);
             try
             {
+                // Bakiye kontrolü
                 ApplicationUser? sender = null;
                 if (!string.IsNullOrEmpty(t.FromAccount?.OwnerUserId))
                 {
@@ -273,11 +367,16 @@ namespace Staj_Proje_1.Controllers
                 }
 
                 var token = await _bank.GetTokenAsync(ct);
+
+                var toNameSafe = string.IsNullOrWhiteSpace(t.ToName)
+                    ? (expectedReceiverName ?? string.Empty)
+                    : t.ToName;
+
                 var res = await _bank.SendTransferAsync(
                     token,
                     t.FromAccount.AccountNumber,
                     t.ToIban,
-                    t.ToName,
+                    toNameSafe,
                     t.Amount,
                     "TRY",
                     null,
@@ -297,10 +396,10 @@ namespace Staj_Proje_1.Controllers
                         _db.Users.Update(sender);
                     }
 
-                    var recvAcc = await _db.MyBankAccounts.FirstOrDefaultAsync(a => a.Iban == t.ToIban, ct);
-                    if (recvAcc?.OwnerUserId != null)
+                    // Alıcı sistemdeyse onun bakiyesini arttır
+                    if (recvAccByIban?.OwnerUserId != null)
                     {
-                        var receiver = await _db.Users.FirstOrDefaultAsync(u => u.Id == recvAcc.OwnerUserId, ct);
+                        var receiver = await _db.Users.FirstOrDefaultAsync(u => u.Id == recvAccByIban.OwnerUserId, ct);
                         if (receiver != null)
                         {
                             receiver.Bakiye += t.Amount;

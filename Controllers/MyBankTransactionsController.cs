@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Linq;
 using Staj_Proje_1.Data;
 using Staj_Proje_1.Models.Dtos;
+using Staj_Proje_1.Models;
 
 namespace Staj_Proje_1.Controllers
 {
@@ -15,10 +17,11 @@ namespace Staj_Proje_1.Controllers
         public MyBankTransactionsController(ApplicationDbContext db) => _db = db;
 
         /// <summary>
-        /// Giriş yapan kullanıcının tüm MyBank hesaplarındaki işlemleri tek listede döner.
-        /// Örn: /api/mybank/transactions/recent?take=10&skip=0&accountId=123&currency=TRY&direction=IN
+        /// Giriş yapan kullanıcının tüm MyBank hesapları için "Son İşlemler".
+        /// Kaynak: MyBankTransfers (Status=Completed) → OUT/IN satır projeksiyonu.
         /// </summary>
         [HttpGet("recent")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetRecent(
             [FromQuery] int take = 10,
             [FromQuery] int skip = 0,
@@ -28,53 +31,98 @@ namespace Staj_Proje_1.Controllers
             CancellationToken ct = default)
         {
             take = Math.Clamp(take, 1, 100);
+            if (skip < 0) skip = 0;
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            // Kullanıcının hesapları + işlemler
-            var q =
-                from t in _db.MyBankTransactions
-                join a in _db.MyBankAccounts on t.MyBankAccountId equals a.Id
-                where a.OwnerUserId == userId
-                select new { t, a };
+            string? cur = string.IsNullOrWhiteSpace(currency) ? null : currency!.Trim().ToUpperInvariant();
+            string? dir = string.IsNullOrWhiteSpace(direction) ? null : direction!.Trim().ToUpperInvariant();
 
-            if (accountId.HasValue)
-                q = q.Where(x => x.a.Id == accountId.Value);
+            // Kullanıcının MyBank hesapları
+            var myAccs = await _db.MyBankAccounts
+                .Where(a => a.OwnerUserId == userId)
+                .Select(a => new { a.Id, a.Iban, a.AccountName, a.AccountNumber, a.Currency })
+                .ToListAsync(ct);
 
-            if (!string.IsNullOrWhiteSpace(currency))
-                q = q.Where(x => x.t.Currency == currency);
+            if (myAccs.Count == 0)
+                return Ok(new { total = 0, items = Array.Empty<RecentTxDto>() });
 
-            if (!string.IsNullOrWhiteSpace(direction))
-                q = q.Where(x => x.t.Direction == direction);
+            var myAccIds   = myAccs.Select(x => x.Id).ToList();
+            var myIbansSet = myAccs.Select(x => x.Iban).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            var ordered = q.OrderByDescending(x => x.t.TransactionDate);
+            // OUT: benim hesaplarımdan giden tamamlanmış transferler
+            var outQ =
+                from t in _db.MyBankTransfers
+                join a in _db.MyBankAccounts on t.FromAccountId equals a.Id
+                where myAccIds.Contains(a.Id)
+                   && t.Status == TransferStatus.Completed
+                   && t.CompletedAt != null
+                select new
+                {
+                    Id          = t.Id,
+                    AccountId   = a.Id,
+                    AccountName = (a.AccountName ?? a.AccountNumber),
+                    When        = t.CompletedAt!.Value,
+                    Description = "Para transferi → " + (t.ToName ?? "") + " (" + t.ToIban + ")",
+                    Direction   = "OUT",
+                    Amount      = t.Amount,
+                    Currency    = t.Currency
+                };
 
-            var total = await ordered.CountAsync(ct);
-            var items = await ordered
+            // IN: alıcı IBAN benim IBAN’larımdan biri ise
+            var inQ =
+                from t in _db.MyBankTransfers
+                join a in _db.MyBankAccounts on t.ToIban equals a.Iban
+                where myIbansSet.Contains(t.ToIban)
+                   && t.Status == TransferStatus.Completed
+                   && t.CompletedAt != null
+                select new
+                {
+                    Id          = t.Id,
+                    AccountId   = a.Id,
+                    AccountName = (a.AccountName ?? a.AccountNumber),
+                    When        = t.CompletedAt!.Value,
+                    Description = "Para transferi ← " + (t.ToName ?? "") + " (" + t.ToIban + ")",
+                    Direction   = "IN",
+                    Amount      = t.Amount,
+                    Currency    = t.Currency
+                };
+
+            // Filtreler
+            if (accountId.HasValue) { outQ = outQ.Where(x => x.AccountId == accountId.Value); inQ = inQ.Where(x => x.AccountId == accountId.Value); }
+            if (!string.IsNullOrEmpty(cur)) { outQ = outQ.Where(x => x.Currency == cur); inQ = inQ.Where(x => x.Currency == cur); }
+            if (!string.IsNullOrEmpty(dir)) { outQ = outQ.Where(x => x.Direction == dir); inQ = inQ.Where(x => x.Direction == dir); }
+
+            var unionQ = outQ.Concat(inQ);
+
+            var total = await unionQ.CountAsync(ct);
+            var page = await unionQ
+                .OrderByDescending(x => x.When)
                 .Skip(skip)
                 .Take(take)
-                .Select(x => new RecentTxDto(
-                    x.t.Id,                              // long Id
-                    x.a.Id,                              // int AccountId
-                    x.a.AccountName ?? x.a.AccountNumber,// string AccountName
-                    x.t.TransactionDate,                 // DateTime TransactionDate
-                    x.t.Description,                     // string? Description
-                    x.t.Direction!,                      // string Direction ("IN"/"OUT")
-                    x.t.Amount,                          // decimal Amount
-                    x.t.BalanceAfter,                    // decimal? BalanceAfter
-                    x.t.Currency                         // string Currency
-                ))
                 .ToListAsync(ct);
+
+            var items = page.Select(x => new RecentTxDto(
+                x.Id,
+                x.AccountId,
+                x.AccountName,
+                x.When,
+                x.Description,
+                x.Direction,
+                x.Amount,
+                null,        // BalanceAfter burada hesaplanmıyor
+                x.Currency
+            )).ToList();
 
             return Ok(new { total, items });
         }
 
         /// <summary>
-        /// Belirli bir hesaba ait işlemler (sayfalı).
-        /// Örn: /api/mybank/transactions/by-account/123?page=1&pageSize=10
+        /// Belirli bir hesaba ait işlemler (sayfalı) — Transfers projeksiyonu.
         /// </summary>
         [HttpGet("by-account/{accountId:int}")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListByAccount(
             int accountId,
             [FromQuery] int page = 1,
@@ -82,42 +130,70 @@ namespace Staj_Proje_1.Controllers
             CancellationToken ct = default)
         {
             if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 10;
+            pageSize = Math.Clamp(pageSize, 1, 100);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            // Hesap gerçekten kullanıcıya mı ait?
-            var owns = await _db.MyBankAccounts.AnyAsync(a => a.Id == accountId && a.OwnerUserId == userId, ct);
-            if (!owns) return NotFound(new { message = "Hesap bulunamadı." });
+            var acc = await _db.MyBankAccounts
+                .Where(a => a.Id == accountId && a.OwnerUserId == userId)
+                .Select(a => new { a.Id, a.Iban, a.AccountName, a.AccountNumber })
+                .FirstOrDefaultAsync(ct);
 
-            var baseQuery =
-                from t in _db.MyBankTransactions
-                where t.MyBankAccountId == accountId
-                orderby t.TransactionDate descending
-                select t;
+            if (acc is null) return NotFound(new { message = "Hesap bulunamadı." });
 
-            var total = await baseQuery.CountAsync(ct);
-            var data = await baseQuery
+            var outQ =
+                from t in _db.MyBankTransfers
+                where t.FromAccountId == acc.Id
+                   && t.Status == TransferStatus.Completed
+                   && t.CompletedAt != null
+                select new
+                {
+                    Id          = t.Id,
+                    When        = t.CompletedAt!.Value,
+                    Description = "Para transferi → " + (t.ToName ?? "") + " (" + t.ToIban + ")",
+                    Direction   = "OUT",
+                    Amount      = t.Amount,
+                    Currency    = t.Currency
+                };
+
+            var inQ =
+                from t in _db.MyBankTransfers
+                where t.ToIban == acc.Iban
+                   && t.Status == TransferStatus.Completed
+                   && t.CompletedAt != null
+                select new
+                {
+                    Id          = t.Id,
+                    When        = t.CompletedAt!.Value,
+                    Description = "Para transferi ← " + (t.ToName ?? "") + " (" + t.ToIban + ")",
+                    Direction   = "IN",
+                    Amount      = t.Amount,
+                    Currency    = t.Currency
+                };
+
+            var unionQ = outQ.Concat(inQ);
+            var total  = await unionQ.CountAsync(ct);
+
+            var pageList = await unionQ
+                .OrderByDescending(x => x.When)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Join(_db.MyBankAccounts,
-                      t => t.MyBankAccountId,
-                      a => a.Id,
-                      (t, a) => new RecentTxDto(
-                          t.Id,                           // long Id
-                          a.Id,                           // int AccountId
-                          a.AccountName ?? a.AccountNumber,// string AccountName
-                          t.TransactionDate,              // DateTime TransactionDate
-                          t.Description,                  // string? Description
-                          t.Direction!,                   // string Direction
-                          t.Amount,                       // decimal Amount
-                          t.BalanceAfter,                 // decimal? BalanceAfter
-                          t.Currency                      // string Currency
-                      ))
                 .ToListAsync(ct);
 
-            return Ok(new { total, page, pageSize, items = data });
+            var items = pageList.Select(x => new RecentTxDto(
+                x.Id,
+                acc.Id,
+                acc.AccountName ?? acc.AccountNumber,
+                x.When,
+                x.Description,
+                x.Direction,
+                x.Amount,
+                null,
+                x.Currency
+            )).ToList();
+
+            return Ok(new { total, page, pageSize, items });
         }
     }
 }

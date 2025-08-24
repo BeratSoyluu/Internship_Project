@@ -298,8 +298,94 @@ export class DashboardComponent implements OnInit {
   isExpanded(id: string): boolean { return !!this.txExpanded()[id]; }
 
   // =========================
-  // Para Transferi (MyBank)
+  // Para Transferi (MyBank) — MODAL
   // =========================
+  // Modal state & form
+  private sanitizeIban(v: string) {
+    return (v || '').replace(/\s+/g, '').toUpperCase();
+  }
+
+  transferOpen = signal(false);
+  transferError = signal<string | null>(null);
+  transferForm = signal<{ toName: string; toIban: string; amount: number; description?: string | null }>({
+    toName: '',
+    toIban: '',
+    amount: 0,
+    description: ''
+  });
+
+  openTransfer() {
+    this.transferError.set(null);
+    this.transferForm.set({ toName: '', toIban: '', amount: 0, description: '' });
+    this.transferOpen.set(true);
+  }
+  closeTransfer() { this.transferOpen.set(false); }
+
+  setTrName(v: string)     { this.transferForm.update(f => ({ ...f, toName: (v || '').trim() })); }
+  setTrIban(v: string)     { this.transferForm.update(f => ({ ...f, toIban: this.sanitizeIban(v || '') })); }
+  setTrAmount(v: any)      { const n = Number(v); this.transferForm.update(f => ({ ...f, amount: Number.isFinite(n) ? n : 0 })); }
+  setTrDesc(v: string)     { this.transferForm.update(f => ({ ...f, description: (v ?? '') })); }
+
+  private refreshMyBankSummaries() {
+    // Hesaplar
+    const code = this.selectedBank();
+    if (code && this.normalizeCode(code) === 'mybank') {
+      this.api.getAccounts(code).subscribe({
+        next: list => this.accounts.set(list ?? []),
+        error: _ => this.accounts.set([]),
+      });
+      // Son işlemler
+      this.api.getMyBankRecent(5, 0).subscribe({
+        next: res => {
+          this.myRecent.set(res.items ?? []);
+          this.myRecentTotal.set(res.total ?? 0);
+        },
+        error: _ => {
+          this.myRecent.set([]);
+          this.myRecentTotal.set(0);
+        }
+      });
+    }
+  }
+
+  submitTransfer() {
+    const form = this.transferForm();
+    // Basit frontend validasyonları
+    if (!form.toName || form.toName.trim().length < 2) {
+      this.transferError.set('Alıcı adı giriniz.');
+      return;
+    }
+    const iban = this.sanitizeIban(form.toIban);
+    if (!iban || iban.length < 15 || iban.length > 34) {
+      this.transferError.set('Geçerli bir IBAN giriniz.');
+      return;
+    }
+    if (!form.amount || form.amount <= 0) {
+      this.transferError.set('Tutar 0’dan büyük olmalı.');
+      return;
+    }
+
+    this.transferError.set(null);
+
+    this.api.createMyBankTransfer({
+      toName: form.toName.trim(),
+      toIban: iban,
+      amount: Number(form.amount),
+      description: form.description ?? null
+    }).subscribe({
+      next: _res => {
+        // Başarılı
+        this.closeTransfer();
+        this.refreshMyBankSummaries();
+      },
+      error: err => {
+        const msg = err?.error?.message || 'Transfer sırasında hata oluştu.';
+        this.transferError.set(msg);
+      }
+    });
+  }
+
+  // (Eski) route tabanlı transfer tetikleyici — dursun, istersen silebilirsin
   transfer(fromAccountId?: string) {
     if (!this.mybankMi()) {
       const my = this.banks().find(b => this.normalizeCode(b.code) === 'mybank' && b.connected)?.code;
