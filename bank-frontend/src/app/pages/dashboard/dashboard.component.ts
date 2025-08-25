@@ -17,6 +17,9 @@ import {
 import { VbAccountDetail } from '../../features/vakifbank/models/vb-account-detail.model';
 import { VbTransaction } from '../../features/vakifbank/models/vb-transaction.model';
 
+// 🔽 Modal bileşeni (yolunu projenizdeki konuma göre güncelleyin)
+import { AccountDetailModalComponent } from '../../shared/account-detail-modal.component';
+
 type AddForm = {
   name: string;
   currency: CurrencyCode;
@@ -25,7 +28,7 @@ type AddForm = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AccountDetailModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css'],
 })
@@ -47,10 +50,43 @@ export class DashboardComponent implements OnInit {
   myRecentTotal = signal(0);
 
   // =========================
-  // Detay Modali (Vakıf)
+  // Döviz / Altın -> TL kurları (örnek değerler)
+  // =========================
+  // İleride bunları API'den çekebilirsin. Şimdilik sabit.
+  private rates: Record<string, number> = {
+    TRY: 1,
+    USD: 41,   // 1 USD = 33 TRY
+    EUR: 18,   // 1 EUR = 36 TRY
+    XAU: 4548 , // 1 Gram Altın = 2500 TRY
+    GBP: 55,   // ihtiyaç olursa
+  };
+
+  // Tutarı verilen para biriminden TL'ye çevirir
+  toTry(amount: number | undefined | null, currency?: string | null): number {
+    const cur = (currency || 'TRY').toUpperCase();
+    const rate = this.rates[cur] ?? 1;
+    return (Number(amount) || 0) * rate;
+  }
+
+  // MyBank toplamını TL cinsinden hesaplar
+  myBankTotal = computed(() => {
+    let total = 0;
+    for (const acc of this.accounts()) {
+      const cur = (acc.currency || 'TRY').toUpperCase();
+      const rate = this.rates[cur] ?? 1;
+      total += (acc.balance ?? 0) * rate;
+    }
+    return total;
+  });
+
+  // =========================
+  // Detay Modali
   // =========================
   detailOpen = signal(false);
+  // VakıfBank detay modeli
   vbDetail = signal<VbAccountDetail | null>(null);
+  // MyBank detay modeli (AccountDto'yu göstereceğiz)
+  myDetail = signal<AccountDto | null>(null);
 
   // =========================
   // Hareketler Modali (Vakıf)
@@ -119,6 +155,11 @@ export class DashboardComponent implements OnInit {
     this.myRecent.set([]);
     this.myRecentTotal.set(0);
 
+    // modal state temizle
+    this.vbDetail.set(null);
+    this.myDetail.set(null);
+    this.detailOpen.set(false);
+
     if (this.normalizeCode(code) === 'vakif') {
       this.api.getVakifAccountList().subscribe({
         next: list => this.vakifAccounts.set(list ?? []),
@@ -180,9 +221,10 @@ export class DashboardComponent implements OnInit {
   }
 
   // =========================
-  // DETAY MODALI
+  // DETAY MODALİ — VakıfBank
   // =========================
   openVbDetails(acc: VakifAccountRow) {
+    this.myDetail.set(null);     // diğer tip temizlensin
     this.vbDetail.set(null);
     this.detailOpen.set(true);
 
@@ -218,10 +260,26 @@ export class DashboardComponent implements OnInit {
       }
     });
   }
-  closeDetail() { this.detailOpen.set(false); }
 
   // =========================
-  // HAREKETLER MODALI
+  // DETAY MODALİ — MyBank
+  // =========================
+  openMyDetails(acc: AccountDto) {
+    // MyBank için detayı doğrudan karttaki bilgiden gösterebiliriz
+    // (istersen burada ayrıca /detail endpoint'i çağırabilirsin)
+    this.vbDetail.set(null);     // diğer tip temizlensin
+    this.myDetail.set(acc);
+    this.detailOpen.set(true);
+  }
+
+  closeDetail() {
+    this.detailOpen.set(false);
+    this.vbDetail.set(null);
+    this.myDetail.set(null);
+  }
+
+  // =========================
+  // HAREKETLER MODALI (Vakıf)
   // =========================
   private ymd(d: Date): string {
     const y = d.getFullYear();

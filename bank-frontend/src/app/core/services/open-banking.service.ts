@@ -225,29 +225,25 @@ export class OpenBankingService {
     opts?: { from?: string | Date; to?: string | Date; take?: number }
   ): Observable<TransactionDto[]> {
     const now = new Date();
-    const fromDef = new Date(now); fromDef.setMonth(fromDef.getMonth() - 1);
+    const fromDef = new Date(now);
+    fromDef.setMonth(fromDef.getMonth() - 1);
 
     const body: any = {
       AccountNumber: accountNumber,
       StartDate: this.formatVbDate(opts?.from ?? fromDef, false),
-      EndDate:   this.formatVbDate(opts?.to   ?? now,     true),
+      EndDate: this.formatVbDate(opts?.to ?? now, true),
     };
 
     const tryPost = (url: string) =>
       this.http.post<TransactionDto[]>(url, body).pipe(
         tap({
           next: res => console.log('[VB TX] POST', url, res),
-          error: err => console.log('[VB TX] ERROR', url, err)
+          error: err => console.log('[VB TX] ERROR', url, err),
         })
       );
 
     return tryPost(this.txUrlPrimary).pipe(
-      catchError(err1 => {
-        if (err1?.status === 404 || err1?.status === 405) {
-          return tryPost(this.txUrlAlt).pipe(catchError(() => of([] as TransactionDto[])));
-        }
-        return of([] as TransactionDto[]);
-      })
+      catchError(() => of([] as TransactionDto[]))
     );
   }
 

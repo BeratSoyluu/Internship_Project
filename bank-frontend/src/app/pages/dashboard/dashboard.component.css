@@ -63,11 +63,11 @@
 .bank-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
 .bank-card.active { border-color: #2f5dc6; box-shadow: 0 8px 20px rgba(47,93,198,.16); }
 
-/* HTML’de .row kullanıldığı için genel tipografi ayarı */
+/* logo + balance */
 .bank-card .logo { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 4px; }
 .bank-card .balance { font-size: 15px; font-weight: 800; color: #111; }
 
-/* ───────── MyBank özel görünüm (kart) ───────── */
+/* MyBank özel görünüm */
 .bank-card.mybank {
   background: linear-gradient(135deg, #e8f0ff 0%, #d9f5ff 55%, #e6ffef 100%);
   border-color: #b6d5ff;
@@ -86,10 +86,9 @@
   background: #22c55e; box-shadow: 0 0 8px #22c55e;
 }
 
-/* kart içi aksiyonlar */
 .card-actions { display: flex; gap: 8px; }
 
-/* Transfer butonu */
+/* transfer butonu */
 .btn.transfer {
   border-radius: 12px;
   border: 0;
@@ -143,7 +142,7 @@
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .actions { display: flex; gap: 8px; }
 
-/* turuncu pill butonlar */
+/* pill butonlar */
 .pill {
   border: none;
   padding: 6px 12px;
@@ -192,7 +191,6 @@
 }
 .vb-modal .vb-btn:hover { filter:brightness(.96); }
 
-/* küçük ekran uyumu */
 @media (max-width:480px) {
   .vb-modal { width:94vw; padding:16px; }
   .vb-modal .vb-row strong { min-width:120px; }
@@ -207,8 +205,6 @@
   max-height: 86vh;
   overflow: hidden;
 }
-
-/* toolbar */
 .tx-toolbar {
   display: flex; gap: 16px; flex-wrap: wrap;
   align-items: center; justify-content: space-between;
@@ -224,15 +220,12 @@
 }
 .tx-range .pill { padding: 6px 10px; }
 
-/* liste gövdesi */
 .tx-body {
   max-height: 60vh;
   overflow: auto;
   padding-right: 6px;
   border-top: 1px solid #f0f0f0;
 }
-
-/* işlem satırı */
 .tx-item {
   border: 1px solid #f0e1cf;
   border-radius: 10px;
@@ -241,8 +234,6 @@
   background: #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,.04);
 }
-
-/* başlık satırı */
 .tx-head {
   width: 100%;
   display: grid;
@@ -250,10 +241,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  text-align: left;
   cursor: pointer;
   background: linear-gradient(180deg,#ffb36b 0%, #ff9d4d 100%);
-  color: #111;
   border: none;
 }
 .tx-head .tx-date { font-weight: 600; }
@@ -261,24 +250,16 @@
 .tx-head .tx-amount { font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .tx-head .tx-caret { font-size: 12px; opacity: .9; }
 
-/* detay */
-.tx-detail {
-  padding: 12px 14px;
-  background: #fff;
-  border-top: 1px solid rgba(0,0,0,.06);
-}
+.tx-detail { padding: 12px 14px; background: #fff; border-top: 1px solid rgba(0,0,0,.06); }
 .tx-detail p { margin: 6px 0; }
 
-/* durum mesajları */
 .tx-loading { padding: 12px; color: #555; }
 .tx-error { padding: 12px; color: #b00020; font-weight: 600; }
 
-/* scrollbar */
 .tx-body::-webkit-scrollbar { width: 10px; }
 .tx-body::-webkit-scrollbar-thumb { background: #e2e2e2; border-radius: 8px; }
 .tx-body::-webkit-scrollbar-track { background: transparent; }
 
-/* küçük ekran uyumu */
 @media (max-width:560px) {
   .tx-head { grid-template-columns: 1fr; }
   .tx-head .tx-amount { justify-content: flex-start; }
@@ -294,7 +275,6 @@
   gap: 18px;
   margin: 20px 0;
 }
-
 .account-card {
   background: linear-gradient(135deg, #eef7ff 0%, #e8fff6 60%, #f9faff 100%);
   border: 1px solid #dbeafe;
@@ -312,27 +292,11 @@
   outline: 2px solid #2563eb;
   box-shadow: 0 10px 26px rgba(37, 99, 235, .18);
 }
-.account-card:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-}
+.account-card:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 
-.account-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #0b3a7e;
-  margin-bottom: 6px;
-}
-.account-balance {
-  font-size: 22px;
-  font-weight: 800;
-  color: #047857;
-}
-.account-meta {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 6px;
-}
+.account-title { font-size: 15px; font-weight: 600; color: #0b3a7e; margin-bottom: 6px; }
+.account-balance { font-size: 22px; font-weight: 800; color: #047857; }
+.account-meta { font-size: 12px; color: #6b7280; margin-top: 6px; }
 .account-meta .mono { overflow-wrap: anywhere; }
 
 .mybank-recent {
@@ -456,19 +420,17 @@
 /*     YENİ: MYBANK PARA TRANSFERİ – Aksiyon & Modal     */
 /* ===================================================== */
 
-/* MyBank üst aksiyon çubuğu (Para transferi butonu) */
 .mybank-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin: 6px 0 10px;
 }
-
 @media (max-width: 640px) {
   .mybank-actions { justify-content: flex-start; }
 }
 
-/* Transfer modalındaki number input’ları da text gibi stillendir */
+/* Transfer modalındaki number input’lar */
 .vb-modal input[type="number"] {
   height: 34px;
   padding: 6px 10px;
@@ -490,13 +452,13 @@
   margin-top: 6px;
 }
 
-/* Yardımcı küçük metin (opsiyonel hint) */
+/* Yardımcı küçük metin */
 .vb-modal .hint {
   font-size: 12px;
   color: #6b7280;
 }
 
-/* IBAN alanında monospace istersen */
+/* IBAN alanı monospace */
 .vb-modal .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
