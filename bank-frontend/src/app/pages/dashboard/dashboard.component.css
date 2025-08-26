@@ -234,6 +234,8 @@
   background: #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,.04);
 }
+
+/* Varsayılan turuncu */
 .tx-head {
   width: 100%;
   display: grid;
@@ -245,6 +247,19 @@
   background: linear-gradient(180deg,#ffb36b 0%, #ff9d4d 100%);
   border: none;
 }
+
+/* Giriş (yeşil) */
+.tx-item.tx-in .tx-head {
+  background: linear-gradient(180deg, #34d399, #10b981);
+  color: #072b14;
+}
+
+/* Çıkış (kırmızı) */
+.tx-item.tx-out .tx-head {
+  background: linear-gradient(180deg, #fda4a4, #ef4444);
+  color: #2a0909;
+}
+
 .tx-head .tx-date { font-weight: 600; }
 .tx-head .tx-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-head .tx-amount { font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
@@ -264,6 +279,7 @@
   .tx-head { grid-template-columns: 1fr; }
   .tx-head .tx-amount { justify-content: flex-start; }
 }
+
 
 /* ===================================================== */
 /*           MYBANK HESAPLAR + SON İŞLEMLER              */

@@ -1,19 +1,20 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule, DatePipe, DecimalPipe } from '@angular/common'; // ✅ pipes & directives
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { OpenBankingService } from '../../core/services/open-banking.service';
 import { VakifAccountRow } from './models/vakif-account-row';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog'; // ✅ dialog module
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { VbAccountDetailsDialogComponent } from './vb-account-details.dialog';
 import { VbAccountDetail } from './models/vb-account-detail.model';
+import { VbTransaction } from './models/vb-transaction.model';
 
 @Component({
   selector: 'vb-accounts',
   standalone: true,
   imports: [
-    CommonModule,     // *ngIf, *ngFor
-    DatePipe,         // |date
-    DecimalPipe,      // |number
-    MatDialogModule,  // MatDialog
+    CommonModule,
+    DatePipe,
+    DecimalPipe,
+    MatDialogModule,
   ],
   templateUrl: './vb-accounts.component.html',
   styleUrls: ['./vb-accounts.component.css'],
@@ -25,6 +26,10 @@ export class VbAccountsComponent implements OnInit {
   loading = signal(true);
   rows = signal<VakifAccountRow[]>([]);
   error = signal<string | null>(null);
+
+  // ✅ Yeni eklenen state’ler
+  txOpen = signal(false);
+  txList = signal<VbTransaction[]>([]);
 
   ngOnInit(): void {
     this.api.getVakifAccountRows().subscribe({
@@ -45,7 +50,6 @@ export class VbAccountsComponent implements OnInit {
 
     this.api.getVakifAccountDetails(row.accountNumber).subscribe({
       next: (raw: any) => {
-        // normalize
         const detail: VbAccountDetail = {
           paraBirimi:      raw?.currency ?? row.currency ?? 'TL',
           sonIslemTarihi:  raw?.lastTransactionDate ?? row.lastTransactionDate,
@@ -70,8 +74,22 @@ export class VbAccountsComponent implements OnInit {
     });
   }
 
+  // ✅ Artık dialog değil, kendi HTML modalını kullanıyoruz
   openTransactions(row: VakifAccountRow) {
-    console.log('TODO: Hesap hareketleri modalı', row?.accountNumber);
+    if (!row?.accountNumber) return;
+
+    this.api.getVakifAccountTransactions(row.accountNumber).subscribe({
+      next: (list) => {
+        this.txList.set(list);
+        this.txOpen.set(true);
+      },
+      error: (err) => console.error('VB TX error', err),
+    });
+  }
+
+  closeTransactions() {
+    this.txOpen.set(false);
+    this.txList.set([]);
   }
 
   trackByIndex(i: number) { return i; }

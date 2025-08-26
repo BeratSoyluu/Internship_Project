@@ -28,7 +28,6 @@
         </div>
 
         <div class="balance">
-          <!-- MyBank ise TL'ye çevrilmiş toplam, değilse bankadan gelen TRY toplam -->
           <ng-container *ngIf="isMyBank(b.code); else otherBankTotal">
             {{ myBankTotal() | number:'1.2-2' }} TRY
           </ng-container>
@@ -85,12 +84,10 @@
     <ng-template #otherBanks>
       <h2>Hesaplar</h2>
 
-      <!-- MyBank aksiyon çubuğu -->
       <div class="mybank-actions" *ngIf="accounts()?.length">
         <button class="pill" (click)="openTransfer()">Para transferi</button>
       </div>
 
-      <!-- Hesap kartları + Hesap Ekle -->
       <div class="mybank-accounts" *ngIf="accounts()?.length; else emptyMyBank">
         <div
           class="account-card"
@@ -109,7 +106,6 @@
           </div>
         </div>
 
-        <!-- Hesap Ekle kartı -->
         <button
           type="button"
           class="account-card add-card"
@@ -121,7 +117,6 @@
         </button>
       </div>
 
-      <!-- Hiç hesap yoksa -->
       <ng-template #emptyMyBank>
         <div class="mybank-accounts">
           <button
@@ -204,7 +199,7 @@
         <p><strong>Para Birimi:</strong> {{ m.currency }}</p>
       </ng-container>
 
-      <!-- Yükleniyor placeholder (Vakıf detayı beklenirken) -->
+      <!-- Yükleniyor placeholder -->
       <ng-container *ngIf="!vbDetail() && !myDetail()">
         <div class="vb-row">Yükleniyor…</div>
       </ng-container>
@@ -245,11 +240,23 @@
         <ng-container *ngIf="!txLoading() && !txError()">
           <div *ngIf="txItems()?.length === 0" class="empty">Kayıt bulunamadı.</div>
 
-          <div *ngFor="let t of txItems(); let i = index; trackBy: trackByIndex" class="tx-item">
-            <button class="tx-head" (click)="toggleTx(t.transactionId || ('idx-' + i))">
+          <!-- GÜNCELLEME: giriş/çıkış renklendirme -->
+          <div
+            *ngFor="let t of txItems(); let i = index; trackBy: trackByIndex"
+            class="tx-item"
+            [class.tx-in]="(t.amount ?? 0) > 0"
+            [class.tx-out]="(t.amount ?? 0) < 0"
+          >
+            <button
+              class="tx-head"
+              (click)="toggleTx(t.transactionId || ('idx-' + i))"
+              [class.tx-in]="(t.amount ?? 0) > 0"
+              [class.tx-out]="(t.amount ?? 0) < 0"
+            >
               <span class="tx-date">{{ t.transactionDate | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <span class="tx-name">{{ t.transactionName || '-' }}</span>
-              <span class="tx-amount">
+              <span class="tx-amount"
+                    [ngClass]="{ 'pos': (t.amount ?? 0) > 0, 'neg': (t.amount ?? 0) < 0 }">
                 {{ t.amount | number:'1.2-2' }} {{ t.currency || 'TRY' }}
                 <span class="tx-caret">▼</span>
               </span>

@@ -42,3 +42,36 @@
     </table>
   </div>
 </section>
+
+<!-- ========================= -->
+<!--  HESAP HAREKETLERİ MODAL  -->
+<!-- ========================= -->
+<div class="tx-backdrop" *ngIf="txOpen()">
+  <div class="tx-modal" role="dialog" aria-modal="true" aria-label="Hesap Hareketleri">
+    <div class="tx-header">
+      <h3>Hesap Hareketleri</h3>
+      <button class="pill ghost" (click)="closeTransactions()">Kapat</button>
+    </div>
+
+    <div class="tx-list">
+      <div
+        class="tx-pill"
+        *ngFor="let tx of txList()"
+        [class.tx-in]="(tx.amount ?? 0) > 0"
+        [class.tx-out]="(tx.amount ?? 0) < 0"
+      >
+        <div class="tx-date">
+          {{ tx.transactionDate | date:'yyyy-MM-dd HH:mm:ss' }}
+        </div>
+        <div class="tx-desc">
+          {{ tx.description || 'İşlem' }}
+        </div>
+        <div class="tx-amount">
+          {{ tx.amount | number:'1.2-2' }} {{ tx.currency || 'TRY' }}
+        </div>
+      </div>
+
+      <div class="empty" *ngIf="txList()?.length === 0">Bu aralıkta işlem yok.</div>
+    </div>
+  </div>
+</div>
