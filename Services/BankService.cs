@@ -332,44 +332,32 @@ public class BankService : IBankService
         string? description,
         CancellationToken ct = default)
     {
-        // MyBank iç transfer — accessToken burada kullanılmıyor
-        var acc = await _db.MyBankAccounts
-            .SingleOrDefaultAsync(a => a.AccountNumber == fromAccountNumber, ct)
-            ?? throw new InvalidOperationException("Hesap bulunamadı.");
+        // Sadece doğrulama — DB'ye kayıt/SaveChanges yok!
+        if (amount <= 0)
+            throw new InvalidOperationException("Tutar pozitif olmalı.");
 
-        if (amount <= 0) throw new InvalidOperationException("Tutar pozitif olmalı.");
-        if (acc.Balance < amount) throw new InvalidOperationException("Yetersiz bakiye.");
-        if (!IsValidTrIban(toIban)) throw new InvalidOperationException("Geçersiz IBAN.");
+        if (!IsValidTrIban(toIban))
+            throw new InvalidOperationException("Geçersiz IBAN.");
 
-        var now = DateTime.UtcNow;
+        // Kaynak hesap gerçekten var mı? (değişiklik yapmadan kontrol)
+        var exists = await _db.MyBankAccounts
+            .AnyAsync(a => a.AccountNumber == fromAccountNumber, ct);
 
-        var tr = new MyBankTransfer
-        {
-            FromAccountId = acc.Id,
-            FromAccount   = acc,
-            ToIban        = toIban,
-            ToName        = toName ?? string.Empty,
-            Amount        = amount,
-            Currency      = string.IsNullOrWhiteSpace(currency) ? "TRY" : currency,
-            Description   = description,
-            Status = TransferStatus.Completed,
-            RequestedAt   = now,
-            CompletedAt   = now
-        };
+        if (!exists)
+            throw new InvalidOperationException("Gönderen hesap bulunamadı.");
 
-        acc.Balance -= amount;
-        _db.MyBankTransfers.Add(tr);
-        await _db.SaveChangesAsync(ct);
-
+        // Burada normalde gerçek banka API çağrısı olurdu.
+        // Şimdilik başarılı sonucu simüle ediyoruz.
         return new BankTransferResponse
         {
             Success           = true,
-            Reference         = tr.Id.ToString(),
+            Reference         = $"RES-{Guid.NewGuid().ToString("N")[..10].ToUpperInvariant()}",
             StatusCode        = "200",
-            StatusDescription = "Transfer completed",
-            RawBody           = JsonSerializer.Serialize(tr)
+            StatusDescription = "Transfer completed (simulated)",
+            RawBody           = "{}"
         };
     }
+
 
 
     // ------------------- Helpers -------------------

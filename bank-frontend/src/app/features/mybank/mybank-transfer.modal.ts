@@ -66,11 +66,12 @@ export class MyBankTransferModal {
 
   // ✅ Form: ibanValidator artık class metodu; “used before initialization” olmaz
   f: FormGroup = this.fb.group({
-    toName: ['', [Validators.required, Validators.minLength(2)]],
+    toName: [''],                                     // <- hiç validator yok
     toIban: ['', [Validators.required, this.ibanValidator.bind(this)]],
     amount: [null as unknown as number, [Validators.required, Validators.min(0.01)]],
     description: ['']
   });
+
 
   onClose() { this.close.emit(); }
 
