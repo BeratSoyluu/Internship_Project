@@ -74,19 +74,31 @@ namespace Staj_Proje_1.Controllers
         }
 
         // HESAP HAREKETLERİ
-        [HttpPost("accountTransactions")]
-        [ProducesResponseType(typeof(TransactionsResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> AccountTransactions([FromBody] AccountTransactionsRequest request)
+        [HttpPost("accounttransactions")]
+        public async Task<IActionResult> AccountTransactions([FromBody] AccountTransactionsRequest request, CancellationToken ct)
         {
-            var token = await _bankService.GetTokenAsync();
-            var transactions = await _bankService.GetAccountTransactionsAsync(
-                token,
-                request.AccountNumber,
-                request.StartDate,
-                request.EndDate
-            );
+            try
+            {
+                var token = await _bankService.GetTokenAsync(ct);
+                var result = await _bankService.GetAccountTransactionsAsync(
+                    token,
+                    request.AccountNumber,
+                    request.StartDate,   // string olarak geliyor
+                    request.EndDate,     // string
+                    ct);
 
-            return Ok(transactions);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                // Örn: Geçersiz tarih -> 400 döndür
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                // Diğer beklenmeyen hatalar -> 500
+                return StatusCode(500, new { message = "Sunucuda beklenmeyen bir hata oluştu." });
+            }
         }
 
     }

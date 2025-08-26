@@ -12,6 +12,7 @@ export const authGuard: CanActivateFn = (route, state) => {
     localStorage.getItem('access_token') ||
     localStorage.getItem('auth.token');
 
+    console.log(token);
   if (token) return true;
 
   // 2) Token yoksa cookie tabanlı oturum var mı kontrol et

@@ -1,13 +1,9 @@
+// src/app/core/services/open-banking.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import {
-  AccountDto,
-  BankDto,
-  LinkBankRequest,
-  TransactionDto,
-  BankCode,
-  CreateMyBankAccountDto,
-  CurrencyCode,
+  AccountDto, BankDto, LinkBankRequest, TransactionDto,
+  BankCode, CreateMyBankAccountDto, CurrencyCode,
 } from '../models/open-banking.models';
 import { Observable, of } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
@@ -20,13 +16,13 @@ import { VbTransaction } from '../../features/vakifbank/models/vb-transaction.mo
 export class OpenBankingService {
   private http = inject(HttpClient);
 
-  // Proxy: /api -> http://localhost:5047
+  // Aggregator (diğer uçlar için)
   private readonly base = '/api/open-banking';
-  private readonly vakifBase = `${this.base}/vakif`;
+  private readonly vakifAggBase = `${this.base}/vakif`;
 
-  // Vakıf endpoint fallback'ları
-  private readonly txUrlPrimary = `${this.vakifBase}/accountTransactions`;   // camelCase
-  private readonly txUrlAlt     = `${this.vakifBase}/account-transactions`;  // kebab-case
+  // VakıfBank controller: Swagger'da çalışan gerçek yol
+  private readonly vbBase = '/api/vakifbank';
+  private readonly txUrl  = `${this.vbBase}/accounttransactions`;
 
   // -------------------- helpers --------------------
   private toStr = (v: any, fallback = ''): string =>
@@ -45,54 +41,17 @@ export class OpenBankingService {
     return fallback;
   };
 
-  /** ISO'ya çevir (timezone yoksa +03:00 varsay) */
-  private toISODate = (v: any): string | null => {
-    if (!v) return null;
-    const s = String(v);
-    const noTz = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s);
-    const s2 = noTz ? `${s}+03:00` : s;
-    const d = new Date(s2);
-    return isNaN(d.getTime()) ? this.toStr(v) : d.toISOString();
-  };
-
-  private pad(n: number) { return String(n).padStart(2, '0'); }
-  private formatVbDate(value: string | Date, endOfDay = false): string {
-    const d = value instanceof Date ? value : new Date(value);
-    const y = d.getFullYear();
-    const m = this.pad(d.getMonth() + 1);
-    const day = this.pad(d.getDate());
-    const hh = endOfDay ? '23' : '00';
-    const mi = endOfDay ? '59' : '00';
-    const ss = endOfDay ? '59' : '00';
-    return `${y}-${m}-${day}T${hh}:${mi}:${ss}+03:00`;
+  /** Backend'in beklediği tarih formatı: dd-MM-yyyy */
+  private toDdMmYyyy(v: string | Date): string {
+    const d = v instanceof Date ? v : new Date(v);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
   }
-
-  // Tekilleştirilmiş normalizer
-  private normalizeAccount = (raw: any): AccountDto => {
-    const iban = this.toStr(raw.iban ?? raw.ibanMasked ?? raw.Iban ?? raw.IbanMasked);
-    return {
-      id: this.toStr(raw.id ?? raw.Id),
-      bankCode: (raw.bankCode ?? raw.bank ?? raw.BankCode ?? raw.Bank) as BankCode,
-      name: this.toStr(raw.name ?? raw.Name ?? 'Vadesiz Hesap'),
-      iban,
-      ibanMasked: this.toStr(raw.ibanMasked ?? raw.IbanMasked ?? iban),
-      balance: this.toNum(raw.balance ?? raw.Balance),
-      currency: (this.toStr(raw.currency ?? raw.Currency ?? 'TRY') as CurrencyCode),
-    };
-  };
-
-  private normalizeBank = (raw: any): BankDto => ({
-    id: this.toStr(raw.id ?? raw.Id),
-    name: this.toStr(raw.name ?? raw.Name),
-    code: (raw.code ?? raw.Code) as BankCode,
-    balanceTRY: this.toNum(raw.balanceTRY ?? raw.balanceTry ?? raw.BalanceTRY ?? raw.balance_trY),
-    connected: this.toBool(raw.connected ?? raw.isConnected ?? raw.linked ?? raw.Connected),
-  });
 
   // -------------------- Banks --------------------
   getLinkedBanks(): Observable<BankDto[]> {
     return this.http.get<any[]>(`${this.base}/linked-banks`).pipe(
-      map((list) => (list ?? []).map(this.normalizeBank))
+      map(list => (list ?? []).map(this.normalizeBank))
     );
   }
 
@@ -104,20 +63,17 @@ export class OpenBankingService {
     return this.linkBank({ bankCode: bank });
   }
 
-  // -------------------- Accounts (genel) --------------------
   getAccounts(bank: BankCode): Observable<AccountDto[]> {
     const params = new HttpParams().set('bank', bank);
     return this.http.get<any[]>(`${this.base}/accounts`, { params }).pipe(
-      map((list) => (list ?? []).map(this.normalizeAccount))
+      map(list => (list ?? []).map(this.normalizeAccount))
     );
   }
 
-  // MyBank için tek hesap örneği (gerekirse)
   getSingleMyBankFromOpenBanking(): Observable<AccountDto | null> {
-    return this.getAccounts('mybank').pipe(map((list) => (list?.length ? list[0] : null)));
+    return this.getAccounts('mybank').pipe(map(list => (list?.length ? list[0] : null)));
   }
 
-  // -------------------- MyBank: Yeni hesap oluştur (DB'ye kaydet) --------------------
   createMyBankAccount(payload: CreateMyBankAccountDto): Observable<AccountDto> {
     const body = {
       name: payload.name,
@@ -134,24 +90,19 @@ export class OpenBankingService {
       params: new HttpParams().set('bank', 'mybank'),
     }).pipe(map(this.normalizeAccount));
 
-    return try1.pipe(
-      catchError(() => try2),
-      catchError(() => try3)
-    );
+    return try1.pipe(catchError(() => try2), catchError(() => try3));
   }
 
-  // -------------------- VakıfBank: Account List --------------------
+  // -------------------- VakıfBank: Account List & Details (aggregator)
   getVakifAccountList(): Observable<VakifAccountRow[]> {
-    return this.http.get<any>(`${this.base}/vakif/account-list`).pipe(
-      map((res) => {
+    return this.http.get<any>(`${this.vakifAggBase}/account-list`).pipe(
+      map(res => {
         const list: any[] = Array.isArray(res)
           ? res
-          : Array.isArray(res?.data?.accounts)
-          ? res.data.accounts
-          : Array.isArray(res?.accounts)
-          ? res.accounts
+          : Array.isArray(res?.data?.accounts) ? res.data.accounts
+          : Array.isArray(res?.accounts)       ? res.accounts
           : [];
-        return list.map((raw) => ({
+        return list.map(raw => ({
           currency: this.toStr(raw.currency ?? raw.Currency ?? 'TL'),
           lastTransactionDate: (raw.lastTransactionDate ?? raw.LastTransactionDate)
             ? this.toStr(raw.lastTransactionDate ?? raw.LastTransactionDate)
@@ -170,15 +121,14 @@ export class OpenBankingService {
     return this.getVakifAccountList();
   }
 
-  // -------------------- VakıfBank: Detay & Hareketler --------------------
   getVakifAccountDetails(accountNumber: string): Observable<any> {
     const params = new HttpParams().set('accountNumber', accountNumber);
-    return this.http.get<any>(`${this.base}/vakif/account-details`, { params });
+    return this.http.get<any>(`${this.vakifAggBase}/account-details`, { params });
   }
 
   getVakifAccountDetailsNormalized(accountNumber: string): Observable<VbAccountDetail> {
     const params = new HttpParams().set('accountNumber', accountNumber);
-    return this.http.get<any>(`${this.base}/vakif/account-details`, { params }).pipe(
+    return this.http.get<any>(`${this.vakifAggBase}/account-details`, { params }).pipe(
       map((res: any): VbAccountDetail => {
         const info = res?.Data?.AccountInfo ?? {};
         const status = String(info.AccountStatus ?? '').toUpperCase();
@@ -219,54 +169,39 @@ export class OpenBankingService {
     );
   }
 
-  // -------------------- VakıfBank: Hareketler --------------------
+  // -------------------- VakıfBank: Transactions (GERÇEK VB CONTROLLER)
   getVakifAccountTransactions(
     accountNumber: string,
-    opts?: { from?: string | Date; to?: string | Date; take?: number }
+    opts?: { from?: string | Date; to?: string | Date }
   ): Observable<TransactionDto[]> {
     const now = new Date();
     const fromDef = new Date(now);
     fromDef.setMonth(fromDef.getMonth() - 1);
 
-    const body: any = {
+    const body = {
       AccountNumber: accountNumber,
-      StartDate: this.formatVbDate(opts?.from ?? fromDef, false),
-      EndDate: this.formatVbDate(opts?.to ?? now, true),
+      StartDate: this.toDdMmYyyy(opts?.from ?? fromDef),
+      EndDate:   this.toDdMmYyyy(opts?.to   ?? now),
     };
 
-    const tryPost = (url: string) =>
-      this.http.post<TransactionDto[]>(url, body).pipe(
-        tap({
-          next: res => console.log('[VB TX] POST', url, res),
-          error: err => console.log('[VB TX] ERROR', url, err),
-        })
-      );
-
-    return tryPost(this.txUrlPrimary).pipe(
+    return this.http.post<TransactionDto[]>(this.txUrl, body).pipe(
+      tap({ error: err => console.error('[VB TX] ERROR', err) }),
       catchError(() => of([] as TransactionDto[]))
     );
   }
 
   getVakifAccountTransactionsNormalized(
     accountNumber: string,
-    opts?: { from?: string | Date; to?: string | Date; take?: number }
+    opts?: { from?: string | Date; to?: string | Date }
   ): Observable<VbTransaction[]> {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const toApiDate = (v: string | Date, endOfDay = false): string => {
-      const d = new Date(v);
-      if (endOfDay) d.setHours(23,59,59,0); else d.setHours(0,0,0,0);
-      const yyyy = d.getFullYear(), MM = pad(d.getMonth()+1), dd = pad(d.getDate());
-      const HH = pad(d.getHours()),  mm = pad(d.getMinutes()), ss = pad(d.getSeconds());
-      return `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}+03:00`;
-    };
-
     const now = new Date();
-    const fromDef = new Date(now); fromDef.setMonth(fromDef.getMonth() - 1);
+    const fromDef = new Date(now);
+    fromDef.setMonth(fromDef.getMonth() - 1);
 
-    const body: any = {
+    const body = {
       AccountNumber: accountNumber,
-      StartDate: toApiDate(opts?.from ?? fromDef, false),
-      EndDate:   toApiDate(opts?.to   ?? now,     true),
+      StartDate: this.toDdMmYyyy(opts?.from ?? fromDef),
+      EndDate:   this.toDdMmYyyy(opts?.to   ?? now),
     };
 
     const mapResponse = (res: any): VbTransaction[] => {
@@ -289,7 +224,7 @@ export class OpenBankingService {
 
         return {
           transactionId:   txId,
-          transactionDate: this.toISODate(dateRaw) ?? toStr(dateRaw),
+          transactionDate: toStr(dateRaw),
           description:     toStr(raw.Description ?? raw.description ?? ''),
           amount,
           currency:        toStr(raw.CurrencyCode ?? raw.currencyCode ?? raw.Currency ?? raw.currency ?? 'TRY'),
@@ -300,24 +235,18 @@ export class OpenBankingService {
       });
     };
 
-    const postAndLog = (url: string) =>
-      this.http.post<any>(url, body).pipe(
-        map(mapResponse),
-        catchError(() => of([] as VbTransaction[]))
-      );
-
-    return postAndLog(this.txUrlPrimary).pipe(
-      catchError(() => postAndLog(this.txUrlAlt))
+    return this.http.post<any>(this.txUrl, body).pipe(
+      map(mapResponse),
+      catchError(() => of([] as VbTransaction[]))
     );
   }
 
-  // -------------------- Recent Transactions (genel özet) --------------------
+  // -------------------- Recent Transactions (genel)
   getRecentTransactions(bank: BankCode, take = 5): Observable<TransactionDto[]> {
     const params = new HttpParams().set('bank', bank).set('take', String(take));
     return this.http.get<TransactionDto[]>(`${this.base}/recent-transactions`, { params });
   }
 
-  // -------------------- MyBank: Recent Transactions --------------------
   getMyBankRecent(take = 10, skip = 0) {
     return this.http.get<{ total: number; items: RecentTxDto[] }>(
       '/api/mybank/transactions/recent',
@@ -325,20 +254,39 @@ export class OpenBankingService {
     );
   }
 
-  // -------------------- MyBank: Para Transferi --------------------
-  /** MyBank transfer: isim + IBAN + tutar backend'e gider */
   createMyBankTransfer(body: TransferCreate) {
-    // Bu endpoint open-banking altında değil; o yüzden absolute path kullandık.
     return this.http.post<TransferDto>('/api/mybank/transfers', body);
   }
+
+  // -------------------- normalizers --------------------
+  private normalizeAccount = (raw: any): AccountDto => {
+    const iban = this.toStr(raw.iban ?? raw.ibanMasked ?? raw.Iban ?? raw.IbanMasked);
+    return {
+      id: this.toStr(raw.id ?? raw.Id),
+      bankCode: (raw.bankCode ?? raw.bank ?? raw.BankCode ?? raw.Bank) as BankCode,
+      name: this.toStr(raw.name ?? raw.Name ?? 'Vadesiz Hesap'),
+      iban,
+      ibanMasked: this.toStr(raw.ibanMasked ?? raw.IbanMasked ?? iban),
+      balance: this.toNum(raw.balance ?? raw.Balance),
+      currency: (this.toStr(raw.currency ?? raw.Currency ?? 'TRY') as CurrencyCode),
+    };
+  };
+
+  private normalizeBank = (raw: any): BankDto => ({
+    id: this.toStr(raw.id ?? raw.Id),
+    name: this.toStr(raw.name ?? raw.Name),
+    code: (raw.code ?? raw.Code) as BankCode,
+    balanceTRY: this.toNum(raw.balanceTRY ?? raw.balanceTry ?? raw.BalanceTRY ?? raw.balance_trY),
+    connected: this.toBool(raw.connected ?? raw.isConnected ?? raw.linked ?? raw.Connected),
+  });
 }
 
-// DTO arayüzü
+// DTO’lar
 export interface RecentTxDto {
   id: number;
   accountId: number;
   accountName: string;
-  transactionDate: string; // ISO string
+  transactionDate: string;
   description?: string;
   direction: 'IN' | 'OUT';
   amount: number;
@@ -346,7 +294,6 @@ export interface RecentTxDto {
   currency: string;
 }
 
-// === MyBank transfer DTO'ları ===
 export interface TransferCreate {
   toIban: string;
   toName: string;

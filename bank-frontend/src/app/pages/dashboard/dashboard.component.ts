@@ -317,7 +317,6 @@ export class DashboardComponent implements OnInit {
     this.api.getVakifAccountTransactionsNormalized(accNo, {
       from: this.txFrom(),
       to:   this.txTo(),
-      take: 100
     }).subscribe({
       next: (rows) => {
         this.txItems.set(rows ?? []);

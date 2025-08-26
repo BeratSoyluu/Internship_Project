@@ -178,24 +178,56 @@ public class BankService : IBankService
         if (!_http.DefaultRequestHeaders.Accept.Any(h => h.MediaType == "application/json"))
             _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        static string ToApiDateTime(string d, bool endOfDay)
+        // GetAccountTransactionsAsync içinde, mevcut ToApiDateTime fonksiyonunu bununla değiştir
+        static string ToApiDateTime(string input, bool endOfDay)
         {
-            var ok = DateTime.TryParseExact(
-                d, "dd-MM-yyyy",
-                new CultureInfo("tr-TR"),
-                DateTimeStyles.None,
-                out var dt);
+            if (string.IsNullOrWhiteSpace(input))
+                throw new ArgumentException("Tarih boş olamaz.");
 
-            if (!ok)
-                throw new ArgumentException($"Geçersiz tarih: {d}. Beklenen format: dd-MM-yyyy");
+            // Hem dd-MM-yyyy hem ISO 8601 (timezone’lu/zoneless) tarihleri kabul et
+            var culture = new CultureInfo("tr-TR");
+            DateTimeOffset dto;
 
-            var local = endOfDay
-                ? dt.Date.AddHours(23).AddMinutes(59).AddSeconds(59)
-                : dt.Date;
+            string[] exactFormats = new[]
+            {
+                "dd-MM-yyyy",
+                "dd-MM-yyyy HH:mm:ss",
+                "yyyy-MM-dd",
+                "yyyy-MM-ddTHH:mm:ss",
+                "yyyy-MM-ddTHH:mm:ssK",
+                "yyyy-MM-ddTHH:mm:ss.fff",
+                "yyyy-MM-ddTHH:mm:ss.fffK"
+            };
 
-            var dto = new DateTimeOffset(local, TimeSpan.FromHours(3));
-            return dto.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+            // Önce exact formatlarla dene
+            if (!DateTimeOffset.TryParseExact(
+                    input,
+                    exactFormats,
+                    culture,
+                    DateTimeStyles.AssumeLocal | DateTimeStyles.AllowWhiteSpaces,
+                    out dto))
+            {
+                // Olmazsa genel parse dene (çoğu ISO’yu yakalar)
+                if (!DateTimeOffset.TryParse(
+                        input,
+                        culture,
+                        DateTimeStyles.AssumeLocal | DateTimeStyles.AllowWhiteSpaces,
+                        out dto))
+                {
+                    throw new ArgumentException($"Geçersiz tarih: {input}. Beklenen format: dd-MM-yyyy veya ISO 8601.");
+                }
+            }
+
+            // Gün başı/sonu ayarı
+            var local = dto.LocalDateTime.Date;
+            if (endOfDay)
+                local = local.AddHours(23).AddMinutes(59).AddSeconds(59);
+
+            // Banka API’sine göndereceğimiz format: ISO + saat dilimi
+            var withTz = new DateTimeOffset(local, TimeSpan.FromHours(3));
+            return withTz.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
         }
+
 
         var apiStart = ToApiDateTime(StartDate, endOfDay: false);
         var apiEnd   = ToApiDateTime(EndDate,   endOfDay: true);
